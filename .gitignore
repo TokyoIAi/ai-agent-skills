@@ -1,0 +1,28 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated outputs
+output/
+**/output/
+
+# Old local git backup
+.git-backup-before-clean-skill-*/
+
+# Logs and temp
+*.log
+*.tmp
+*.bak
+
+# Origin temporary/cache files
+*.ogwu~
+*.opju~
+*.opj~
+*.bak
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

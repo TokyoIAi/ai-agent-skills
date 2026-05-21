@@ -1,0 +1,4 @@
+interface:
+  display_name: "Origin Plot"
+  short_description: "Generate OriginPro scientific plots via Windows Python."
+  default_prompt: "Use Windows Python and originpro to diagnose the Origin environment and generate verified scientific plots from CSV or Excel data without GUI clicking."
