@@ -1,15 +1,43 @@
-﻿# origin-plot-skill
+﻿# ai-agent-skills
 
-A Codex Agent Skill for automating Origin / OriginPro plotting through Windows Python and the originpro package.
+A personal collection of reusable AI Agent Skills for Codex, Claude Code, and local automation workflows.
+
+## Skills
+
+| Skill | Path | Status | Purpose |
+|---|---|---|---|
+| origin-plot | skill/origin-plot | v0.1 PASS | Automate Origin / OriginPro plotting with Windows Python and originpro |
 
 ## Repository layout
 
+- skill/origin-plot/
 - skill/origin-plot/.agents/skills/origin-plot/
 - skill/origin-plot/data/
 - skill/origin-plot/originext_smoke_test.py
 - skill/origin-plot/originpro_smoke_test.py
 
-## Quick start
+## Design rule
+
+Each Skill is stored as an independent subproject under skill/<skill-name>/ .
+
+Generated output files are ignored by Git and are not uploaded by default.
+
+## Current validated Skill
+
+### origin-plot
+
+Status: v0.1 PASS
+
+Validated locally:
+
+- Windows Python can import originpro.
+- OriginExt COM smoke test passed.
+- originpro smoke test passed.
+- Origin worksheet creation succeeded.
+- Origin graph export succeeded.
+- PNG/PDF/OPJU generation succeeded locally.
+
+## Quick start for origin-plot
 
 Run from the repository root:
 
@@ -19,14 +47,3 @@ Then run:
 
 py .agents\skills\origin-plot\scripts\check_origin_env.py
 py .agents\skills\origin-plot\scripts\plot_origin_template.py
-
-## Status
-
-v0.1 has been locally validated:
-
-- Windows Python can import originpro.
-- OriginExt COM smoke test passed.
-- originpro smoke test passed.
-- Origin worksheet, graph export, PNG/PDF/OPJU generation succeeded locally.
-
-Generated output files are ignored by Git and are not uploaded by default.
