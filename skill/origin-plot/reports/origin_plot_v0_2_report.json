@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "config_path": "configs\\origin_plot_config.yaml",
+  "input_file": "data\\sample.csv",
+  "detected_format": "csv",
+  "row_count_raw": 6,
+  "row_count_used": 6,
+  "x_column": "x",
+  "y_columns": [
+    "y1",
+    "y2"
+  ],
+  "graph_type": "line",
+  "outputs": {
+    "png": {
+      "path": "output\\origin_plot_config\\sample_origin_plot.png",
+      "exists": true,
+      "size_bytes": 15738
+    },
+    "pdf": {
+      "path": "output\\origin_plot_config\\sample_origin_plot.pdf",
+      "exists": true,
+      "size_bytes": 7973
+    },
+    "opju": {
+      "path": "output\\origin_plot_config\\sample_origin_plot.opju",
+      "exists": true,
+      "size_bytes": 26530
+    }
+  },
+  "warnings": [],
+  "errors": []
+}

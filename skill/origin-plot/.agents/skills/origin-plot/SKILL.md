@@ -119,3 +119,66 @@ If `py` is unavailable, try the same commands with the Windows `python` executab
 - Adapt `scripts/plot_origin_template.py` to the user's real input, labels, graph template, and export formats.
 - Prefer deterministic file existence checks over visual inspection.
 - Keep diagnostics read-only except for writing reports under `output/`.
+
+## v0.2 Config-based Plotting
+
+Use v0.2 when the user wants real project data plotted from a YAML configuration rather than editing the sample template. Run these commands from `skill/origin-plot/`:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\origin_plot_config.yaml
+py scripts\origin_plot_from_config.py --config configs\origin_plot_config.yaml
+```
+
+The v0.2 scripts live at the subproject root under `scripts/` and keep the v0.1 `.agents\skills\origin-plot\scripts\plot_origin_template.py` baseline intact.
+
+## Supported Input Formats
+
+Current v0.2 supports:
+
+- CSV
+- XLSX
+- TSV
+- TXT delimited text
+
+Current v0.2 does not formally support:
+
+- XLS old Excel unless `xlrd` is installed.
+- OPJU as input.
+- Image data.
+- Complex multi-layer Origin templates.
+
+## YAML Configuration Schema
+
+Use `configs/origin_plot_config.yaml` as the starting point. Required fields are `input_file`, `x_column`, `y_columns`, `graph_type`, `output_dir`, and `output_basename`.
+
+- `input_format`: `auto`, `csv`, `xlsx`, `tsv`, `txt`, or `xls`.
+- `graph_type`: `line`, `scatter`, or `line_symbol`.
+- `show_origin`: show or hide Origin while automating.
+- `save_opju`, `export_png`, `export_pdf`: control requested outputs.
+- `png_width`: pixel width passed to Origin graph export for PNG.
+
+## Validation Workflow
+
+Run the validator before calling Origin. It loads YAML, resolves input format, reads data with pandas, checks required columns, confirms selected X/Y columns can become numeric, and verifies at least two valid data rows.
+
+## Real Data Workflow
+
+1. Copy or edit `configs/origin_plot_config.yaml`.
+2. Point `input_file` to a CSV/XLSX/TSV/TXT file under the subproject.
+3. Set `x_column`, `y_columns`, titles, output directory, and basename.
+4. Run the validator.
+5. Run `origin_plot_from_config.py`.
+6. Verify requested PNG/PDF/OPJU outputs and `reports/origin_plot_v0_2_report.json`.
+
+## Output Contract
+
+The plotting script writes requested files under `output_dir` and writes `reports/origin_plot_v0_2_report.json` with relative paths, row counts, selected columns, warnings, errors, and output existence/size checks. `output/` is generated output and should not be committed.
+
+## Failure Handling
+
+If validation fails, do not call Origin. If Origin automation fails, print the full traceback, write a FAIL report, and do not claim success. If only some requested outputs exist, report `PARTIAL PASS`, list the missing files, and exit nonzero.
+
+## Version Notes
+
+- v0.1: sample CSV template plot using `.agents\skills\origin-plot\scripts\plot_origin_template.py`.
+- v0.2: YAML-configured plotting for CSV/XLSX/TSV/TXT input using `scripts\validate_origin_plot_config.py` and `scripts\origin_plot_from_config.py`.
