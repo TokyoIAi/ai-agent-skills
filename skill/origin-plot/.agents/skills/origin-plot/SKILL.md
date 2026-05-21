@@ -23,6 +23,7 @@ Use this skill for Origin/OriginPro plotting, Origin project generation, batch s
 - Use Windows Python for controlling installed Windows Origin.
 - Do not claim success unless output files are actually generated and verified.
 - Do not modify Origin installation files, registry entries, or system settings during diagnostics.
+- Do not auto-click Origin dialogs.
 
 ## Environment Requirements
 
@@ -109,6 +110,9 @@ If `py` is unavailable, try the same commands with the Windows `python` executab
 - If `pandas` or `openpyxl` is missing, report the missing package before plotting.
 - If running under WSL/Linux, explain that WSL Python usually cannot directly call Windows COM / Origin Automation.
 - If Origin is not installed or COM launch fails, report that Origin automation is unavailable and do not claim plot generation.
+- If Origin shows first-run/license/update dialogs, ask the user to complete initialization manually.
+- If manual OK is required only once, document it as first-run manual initialization.
+- If manual OK is required on every run, mark validation as PARTIAL PASS.
 - If the data has fewer than two numeric columns, stop with a clear message.
 - If expected output files are missing, list them and exit nonzero.
 
@@ -182,3 +186,4 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 
 - v0.1: sample CSV template plot using `.agents\skills\origin-plot\scripts\plot_origin_template.py`.
 - v0.2: YAML-configured plotting for CSV/XLSX/TSV/TXT input using `scripts\validate_origin_plot_config.py` and `scripts\origin_plot_from_config.py`.
+- v0.2.1: documents a first-run manual Origin dialog caveat; subsequent PowerShell rerun completed without popup.

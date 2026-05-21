@@ -12,6 +12,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
 SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
+MANUAL_INTERVENTION = {
+    "user_reported_manual_ok": True,
+    "current_rerun_popup_observed_by_user": False,
+    "manual_intervention_required": "first_run_only",
+    "notes": (
+        "User reported one manual OK during initial validation. A later PowerShell rerun "
+        "completed without a popup. GUI dialog auto-clicking is intentionally not implemented."
+    ),
+}
 
 
 def rel(path: Path) -> str:
@@ -120,6 +129,7 @@ def build_report(
         "y_columns": y_columns,
         "graph_type": graph_type,
         "outputs": {name: output_status(path) for name, path in outputs.items()},
+        "manual_intervention": MANUAL_INTERVENTION,
         "warnings": warnings,
         "errors": errors,
     }

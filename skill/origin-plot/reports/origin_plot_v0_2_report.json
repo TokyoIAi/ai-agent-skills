@@ -25,8 +25,14 @@
     "opju": {
       "path": "output\\origin_plot_config\\sample_origin_plot.opju",
       "exists": true,
-      "size_bytes": 26530
+      "size_bytes": 27622
     }
+  },
+  "manual_intervention": {
+    "user_reported_manual_ok": true,
+    "current_rerun_popup_observed_by_user": false,
+    "manual_intervention_required": "first_run_only",
+    "notes": "User reported one manual OK during initial validation. A later PowerShell rerun completed without a popup. GUI dialog auto-clicking is intentionally not implemented."
   },
   "warnings": [],
   "errors": []

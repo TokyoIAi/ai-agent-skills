@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.2.
+Current version: v0.2.1.
 
 ## Supported formats
 
@@ -78,6 +78,16 @@ The v0.2 script writes requested outputs such as:
 - `reports/origin_plot_v0_2_report.json`
 
 `output/` is generated and ignored by Git. The report uses relative paths so it can be committed when useful.
+
+## Manual Gate / First-run Origin Dialog
+
+This skill does not automate GUI clicking.
+
+Origin may show first-run, license, update, or initialization dialogs. The user may need to manually confirm such dialogs once before automation can proceed normally.
+
+In the current v0.2.1 validation, the user reported one initial OK dialog, but a later PowerShell rerun completed without a popup. Therefore this is documented as first-run manual initialization, not a recurring automation blocker.
+
+If a dialog appears on every run, treat the result as PARTIAL PASS until Origin configuration is fixed.
 
 ## Common errors
 
