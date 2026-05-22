@@ -1,65 +1,99 @@
 # origin-plot
 
 `origin-plot` is the Origin / OriginPro plot execution backend in this
-repository. **It is not a data understanding tool.** Codex (or any
-equivalent caller) is responsible for cleaning input, normalising columns,
-and choosing the plot intent. `origin-plot` then receives canonical data and
-a YAML config, and reliably renders PNG / PDF / OPJU through Origin.
+repository. **Read `What it is NOT` before opening anything else.**
 
-Current version: **v1.0-core-refactor**.
+Current version: **v1.0.1 Core Execution Backend**.
 
-## What it does
+---
 
-- Validates a plot YAML against the v1.0 schema.
-- Loads canonical CSV / XLSX / TSV / TXT data via `core/data_loader.py`.
-- Drives Origin / OriginPro through the verified executor that ships in
-  `scripts/`.
-- Exports PNG / PDF / OPJU.
-- Assembles `reports/report_package/` with figures, OPJU, configs,
-  `figure_index.md`, and `run_report.json`.
+## 1. What is origin-plot?
 
-## What it does not do
+`origin-plot` is a stable Origin / OriginPro plot execution backend.
 
-- **No** image OCR, handwriting recognition, or photo-of-table parsing.
-- **No** auto-inference of user intent.
-- **No** Markdown / OPJU / image input formats.
-- **No** grouped / multi-panel / faceted plots in the v1.0 core.
-- **No** GUI clicking, screenshot recognition, or mouse-coordinate
-  automation.
+- **Input:** canonical CSV / XLSX / TSV / TXT data + an explicit YAML plot
+  config.
+- **Behavior:** validates the config, drives Origin / OriginPro through
+  the verified executor, exports figures.
+- **Output:** PNG, PDF, OPJU, and a portable `reports/report_package/`
+  bundle.
 
-If a request needs any of the above, hand it to Codex. Codex cleans the
-data, writes the canonical CSV / XLSX, and writes the YAML; `origin-plot`
-then runs.
+That is the entire scope.
 
-## Three day-to-day commands
+## 2. What it is NOT
+
+`origin-plot` does **not** do any of the following. They belong to
+**Codex** (or to a sibling Skill), upstream of this Skill:
+
+- OCR
+- Handwriting recognition
+- Image / photo / screenshot data extraction
+- Smart column-role inference
+- Automatic graph-type recommendation
+- Excel sheet auto-detection
+- Excel header-row auto-detection
+- Guessing user intent
+
+The full list and the gating rules for tier-B candidates (grouped, multi-
+panel, faceted, template reuse, OPJU/OTPU template execution) live in
+[`contracts/non_goals.md`](contracts/non_goals.md).
+
+> **origin-plot never infers; it executes explicit canonical config.**
+
+## 3. Core boundary
+
+```
+┌────────────────────────┐    canonical CSV/XLSX +    ┌────────────────────────┐
+│ Codex / Claude         │   explicit YAML config     │ origin-plot            │
+│ (data understanding)   │ ─────────────────────────► │ (Origin execution)     │
+│ messy Excel, Markdown, │                            │ validate, plot, export │
+│ images, lab notebooks  │                            │ PNG / PDF / OPJU       │
+└────────────────────────┘                            └────────────────────────┘
+```
+
+The contracts that define this boundary live in
+[`contracts/`](contracts/README.md):
+
+- [`canonical_data_contract.md`](contracts/canonical_data_contract.md)
+- [`plot_config_schema.md`](contracts/plot_config_schema.md)
+- [`codex_data_wrangler_contract.md`](contracts/codex_data_wrangler_contract.md)
+- [`non_goals.md`](contracts/non_goals.md)
+
+## 4. Quick start
 
 From `skill/origin-plot/`:
 
-### 1. Render a single plot
-
 ```powershell
+# Render one plot
 py workflows\run_plot.py --config configs\examples\line_plot.yaml
-```
 
-### 2. Render a batch
-
-```powershell
+# Render a batch
 py workflows\run_batch.py --batch-config configs\examples\batch.yaml
+
+# Run the minimal acceptance suite (3 examples + path leak scan)
+py workflows\accept_core.py
 ```
 
-### 3. Codex-driven workflow
+A successful `accept_core.py` ends with `PASS: origin-plot core acceptance ok`.
 
-```text
-Codex reads the user's raw / messy artifact (Excel, Markdown, image, etc.)
-Codex writes data/cleaned/<dataset>.csv (canonical shape)
-Codex writes configs/generated/<dataset>.yaml (v1.0 schema)
-origin-plot runs:  py workflows\run_plot.py --config configs\generated\<dataset>.yaml
+## 5. Daily workflow for Codex / Claude
+
+```
+┌─ user gives Codex a messy artifact (Excel / Markdown / image / notebook)
+│
+├─ Codex stages the raw file under     data/raw/<dataset>.<ext>
+├─ Codex writes canonical data to      data/cleaned/<dataset>.csv (or .xlsx)
+├─ Codex writes the plot config to     configs/generated/<dataset>.yaml
+├─ Codex invokes:                      py workflows\run_plot.py --config configs\generated\<dataset>.yaml
+│
+└─ Codex returns the deliverable from  reports/report_package/
 ```
 
-The full contract lives in
-[`contracts/codex_data_wrangler_contract.md`](contracts/codex_data_wrangler_contract.md).
+Codex must satisfy the canonical data contract and the plot config schema
+before invoking the workflow. `origin-plot` does not retry messy inputs;
+it returns a validation error.
 
-## Outputs
+## 6. Output package
 
 `reports/report_package/` is the primary deliverable. After a successful
 run it contains:
@@ -70,101 +104,72 @@ reports/report_package/
   figures/<basename>.pdf
   origin_projects/<basename>.opju
   configs/<config>.yaml
-  figure_index.md
-  run_report.json
+  figure_index.md      # human-readable index for the run
+  run_report.json      # machine-readable run summary
 ```
 
 `output/` contains the raw exports the executor produces. **`output/` is
-git-ignored and must never be committed.**
+git-ignored and must never be committed.** Reports must remain free of
+absolute local paths (`H:\`, `C:\`, `E:\`, `/mnt/`); the hygiene scanner
+in `ops/hygiene/` (or `scripts/check_committed_reports.py`) enforces this.
 
-## Layout
+## 7. Directory map (one line each)
 
 | Path | Role |
 |---|---|
-| `core/` | Thin Python layer that wraps the verified v0.8.7 implementation. |
-| `workflows/` | Public CLIs (`run_plot.py`, `run_batch.py`, `accept_core.py`, `build_report_package.py`). |
-| `contracts/` | Canonical data contract, plot config schema, Codex wrangler contract. |
-| `configs/examples/` | Worked examples (`line_plot.yaml`, `errorbar_plot.yaml`, `fitting_plot.yaml`, `batch.yaml`). |
-| `data/examples/` | Tiny canonical datasets used by the examples. |
-| `data/raw/` | Where Codex stages messy upstream files (git-ignored when bulky). |
-| `data/cleaned/` | Where Codex writes canonical CSV / XLSX before invoking workflows. |
-| `scripts/` | The verified v0.8.7 implementation. Still functional; `core/` and `ops/` delegate here. |
-| `ops/` | Advanced maintenance tooling (smoke tests, health, hygiene, release). Not part of daily flow. |
-| `archive/v0_8_7_full_stack/` | Documentation anchor for the v0.8.7 surface that v1.0 keeps verbatim. |
-| `reports/report_package/` | Primary deliverable after every run. |
+| [`core/`](core/) | Thin Python layer wrapping the verified v0.8.7 backend. Façade only; not a re-implementation. |
+| [`workflows/`](workflows/README.md) | Daily entry-point CLIs (`run_plot.py`, `run_batch.py`, `accept_core.py`, `build_report_package.py`). |
+| [`contracts/`](contracts/README.md) | Canonical data contract, plot config schema, Codex wrangler contract, non-goals. |
+| [`configs/`](configs/) | YAML configs. `configs/examples/` ships worked examples; `configs/styles/`, `configs/exports/`, `configs/sessions/`, `configs/fitting/`, `configs/errorbar/`, `configs/batch/`, `configs/scan/`, `configs/generated/` are reusable profiles or generated artifacts. |
+| [`data/`](data/) | `data/raw/` for messy upstream files, `data/cleaned/` for Codex output, `data/examples/` for shipped examples. |
+| [`scripts/`](scripts/) | The verified v0.8.7 implementation. **Source of truth for Origin control.** Do not start here unless debugging. |
+| [`ops/`](ops/README.md) | Advanced maintenance tooling (smoke tests, health, hygiene, release). Not part of daily flow. |
+| [`archive/`](archive/README.md) | Documentation anchors for the v0.8.7 backend and the v0.9 smart-input experiment. |
+| `reports/report_package/` | Primary deliverable. |
+| `output/` | Raw exports. **Never commit.** |
 
-## Scope and non-goals
+A more navigational view lives in [`DIRECTORY.md`](DIRECTORY.md).
 
-- [`archive/v1_0_scope_clarification.md`](archive/v1_0_scope_clarification.md)
-  records what v1.0-core-refactor changed (public surface, contracts) and
-  what it deliberately did **not** change (`core/` is still a façade over
-  the verified v0.8.7 implementation in `scripts/`).
-- [`contracts/non_goals.md`](contracts/non_goals.md) lists the hard
-  non-goals (OCR, smart inference, sheet auto-detection, etc.) and the
-  tier-B features (grouped, multi-panel, faceted, template reuse) that
-  may land later **only** under explicit canonical contracts.
-- [`archive/v0_9_smart_input_reference.md`](archive/v0_9_smart_input_reference.md)
-  documents where the v0.9 smart-input experiment lives now (immutable
-  tag plus archive branch) and how to inspect it without dragging it
-  back into the v1.0 mainline.
+## 8. Version notes
 
-## Acceptance
+- The verified v0.8.7 backend (Origin executor, validator, batch script,
+  retry/health tooling, smoke tests) **remains in `scripts/`** and is the
+  source of truth for Origin control. v1.0 did not re-implement it.
+- v1.0-core-refactor introduced the public surface (`core/`, `workflows/`,
+  `contracts/`, `ops/`). `core/` is a façade over `scripts/`. Full
+  internalization belongs to v1.1+. Details:
+  [`archive/v1_0_scope_clarification.md`](archive/v1_0_scope_clarification.md).
+- v1.0.1-origin-plot-core-archive-notes added the v0.9 archive note,
+  non-goals, and scope clarification.
+- v0.9-origin-plot-smart-input is a historical experiment that is
+  **preserved but not in the v1.0 mainline.** It lives at the
+  `v0.9-origin-plot-smart-input` tag and the
+  `archive/skill-v0.9-smart-input` branch. See
+  [`archive/v0_9_smart_input_reference.md`](archive/v0_9_smart_input_reference.md).
 
-Run all three example configs plus a hygiene scan:
+## 9. Links
 
-```powershell
-py workflows\accept_core.py
-```
+- Directory navigation: [`DIRECTORY.md`](DIRECTORY.md)
+- Codex contract:
+  [`contracts/README.md`](contracts/README.md),
+  [`contracts/canonical_data_contract.md`](contracts/canonical_data_contract.md),
+  [`contracts/plot_config_schema.md`](contracts/plot_config_schema.md),
+  [`contracts/codex_data_wrangler_contract.md`](contracts/codex_data_wrangler_contract.md),
+  [`contracts/non_goals.md`](contracts/non_goals.md)
+- Operator entry points: [`workflows/README.md`](workflows/README.md)
+- Maintenance tooling: [`ops/README.md`](ops/README.md)
+- Historical anchors:
+  [`archive/README.md`](archive/README.md),
+  [`archive/v1_0_scope_clarification.md`](archive/v1_0_scope_clarification.md),
+  [`archive/v0_9_smart_input_reference.md`](archive/v0_9_smart_input_reference.md),
+  [`archive/v0_8_7_full_stack/README.md`](archive/v0_8_7_full_stack/README.md)
 
-Expected: `PASS: origin-plot core acceptance ok`.
-
-## Maintenance tools (ops)
-
-`ops/` is for operators who need the v0.8.7 stability tooling. None of these
-commands are required for daily plotting.
-
-```powershell
-# Run offline / full smoke tests:
-py ops\smoke\run_smoke_tests.py --skip-origin
-py ops\smoke\run_smoke_tests.py
-
-# Pre-commit hygiene (offline smoke + report path leak scan):
-powershell -ExecutionPolicy Bypass -File ops\release\pre_commit_smoke.ps1
-bash ops/release/pre_commit_smoke.sh
-
-# Inspect or reset session health:
-py ops\health\reset_session_history.py
-py ops\health\test_session_health_logic.py
-
-# Cross-report fit-artifact rollup:
-py ops\reports\summarize_fit_artifacts.py --reports-dir reports --exclude-injection --since 2000-01-01 --drop-missing-timestamp
-
-# Path leak scanner:
-py ops\hygiene\check_committed_reports.py
-```
-
-Each `ops/` script delegates to the verified script in `scripts/`. See
-`ops/README.md`.
-
-## Hard rules
+## 10. Hard rules
 
 - No GUI auto-clicking. No `pyautogui`. No screenshot recognition. No
   mouse-coordinate clicks. No auto-clicking Origin dialogs.
 - `output/` is generated; never commit it.
-- Reports may not contain absolute local paths (`H:\`, `C:\`, `E:\`,
-  `/mnt/`). The hygiene scanner enforces this.
+- Reports may not contain absolute local paths.
 - All paths in configs and reports are relative to `skill/origin-plot/`.
-- Behavior changes that touch Origin control land as `vX.Y` features; the
-  v1.0 core layer adds bookkeeping only.
-
-## Migration notes
-
-- Daily users: switch to `workflows/run_plot.py` and the four
-  `configs/examples/*.yaml` files.
-- Operators that relied on `scripts/...` directly: nothing breaks; the same
-  scripts still work and `ops/` exposes the same entries.
-- Documentation references that pointed to v0.8.7 health-monitoring CLIs
-  should now use `ops/health/` paths.
-- The image / OCR / Markdown smart-input experiments that lived on the
-  `skill` branch (tag `v0.9-origin-plot-smart-input`) are intentionally
-  **not** part of v1.0. Codex absorbs those responsibilities.
+- Behavior changes that touch Origin control land as `vX.Y` features in
+  v1.x or later; the v1.0 line adds bookkeeping and documentation only.
