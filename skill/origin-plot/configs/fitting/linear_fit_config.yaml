@@ -25,13 +25,20 @@ fitting:
     position: "top_right"
   summary_csv:
     enabled: true
-    path: "reports/fitting_summary.csv"
+    path: "reports/fitting_summary_linear.csv"
+    append: false
   residuals:
     export_csv: true
     generate_residual_plot: true
     output_dir: "output/origin_plot_residuals"
 
-graph_title: "Linear Fit Plot v0.8"
+origin_session:
+  retry_on_com_error: true
+  max_retries: 1
+  kill_stale_origin_before_retry: true
+  retry_delay_seconds: 2
+
+graph_title: "Linear Fit Plot v0.8.1"
 x_title: "X"
 y_title: "Y"
 

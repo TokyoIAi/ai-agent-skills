@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
+import subprocess
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Any
@@ -15,6 +18,17 @@ SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
 SUPPORTED_ANNOTATION_POSITIONS = {"top_right", "top_left", "bottom_right", "bottom_left"}
+SESSION_ERROR_INDICATORS = (
+    "\u65e0\u6548\u6307\u9488",  # 无效指针
+    "ApplicationBase_LT_execute",
+    "OriginExt",
+    "originpro",
+    "COMError",
+    "com_error",
+    "set_show",
+    "_OriginExt",
+)
+ORIGIN_PROCESS_NAMES = ("Origin64.exe", "Origin.exe", "OriginPro.exe")
 MANUAL_INTERVENTION = {
     "user_reported_manual_ok": True,
     "current_rerun_popup_observed_by_user": False,
@@ -223,6 +237,74 @@ def normalize_fit_config(config: dict[str, Any], y_columns: list[str]) -> tuple[
     return enabled, normalized, warnings
 
 
+def normalize_session_config(config: dict[str, Any]) -> dict[str, Any]:
+    session_raw = config.get("origin_session") or {}
+    if session_raw and not isinstance(session_raw, dict):
+        raise ValueError("origin_session must be a mapping.")
+
+    retry_on_com_error = session_raw.get("retry_on_com_error", True)
+    if not isinstance(retry_on_com_error, bool):
+        raise ValueError("origin_session.retry_on_com_error must be a boolean.")
+    max_retries_raw = session_raw.get("max_retries", 1)
+    try:
+        max_retries = int(max_retries_raw)
+    except (TypeError, ValueError):
+        raise ValueError("origin_session.max_retries must be an integer.") from None
+    if max_retries < 0 or max_retries > 5:
+        raise ValueError("origin_session.max_retries must be between 0 and 5.")
+    kill_stale = session_raw.get("kill_stale_origin_before_retry", True)
+    if not isinstance(kill_stale, bool):
+        raise ValueError("origin_session.kill_stale_origin_before_retry must be a boolean.")
+    delay_raw = session_raw.get("retry_delay_seconds", 2)
+    try:
+        retry_delay_seconds = float(delay_raw)
+    except (TypeError, ValueError):
+        raise ValueError("origin_session.retry_delay_seconds must be a number.") from None
+    if retry_delay_seconds < 0 or retry_delay_seconds > 60:
+        raise ValueError("origin_session.retry_delay_seconds must be between 0 and 60.")
+    return {
+        "retry_on_com_error": retry_on_com_error,
+        "max_retries": int(max_retries),
+        "kill_stale_origin_before_retry": kill_stale,
+        "retry_delay_seconds": float(retry_delay_seconds),
+    }
+
+
+def is_session_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__module__}.{type(exc).__name__}: {exc}"
+    return any(indicator.lower() in text.lower() for indicator in SESSION_ERROR_INDICATORS)
+
+
+def kill_stale_origin_processes() -> tuple[bool, list[str]]:
+    notes: list[str] = []
+    killed_any = False
+    for proc_name in ORIGIN_PROCESS_NAMES:
+        try:
+            completed = subprocess.run(
+                ["taskkill", "/F", "/IM", proc_name],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            stdout = (completed.stdout or "").strip()
+            stderr = (completed.stderr or "").strip()
+            if completed.returncode == 0:
+                killed_any = True
+                if stdout:
+                    notes.append(f"taskkill {proc_name}: {stdout}")
+            elif stdout or stderr:
+                # Treat 'not found' as expected/quiet.
+                lower_combo = (stdout + " " + stderr).lower()
+                if "not found" not in lower_combo and "\u672a\u627e\u5230" not in (stdout + stderr):
+                    notes.append(f"taskkill {proc_name} rc={completed.returncode}: {stdout or stderr}")
+        except FileNotFoundError:
+            notes.append("taskkill.exe is not available; skipped Origin process kill")
+            break
+        except Exception as exc:  # noqa: BLE001 - never raise from cleanup
+            notes.append(f"taskkill {proc_name} failed: {type(exc).__name__}: {exc}")
+    return killed_any, notes
+
+
 def normalize_fit_artifact_config(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     fitting = config.get("fitting") or {}
     if not isinstance(fitting, dict):
@@ -258,9 +340,13 @@ def normalize_fit_artifact_config(config: dict[str, Any]) -> tuple[dict[str, Any
         raise ValueError("fitting.summary_csv.path must be a non-empty string.")
     if Path(summary_csv_path).is_absolute():
         raise ValueError(f"fitting.summary_csv.path must be relative: {summary_csv_path}")
+    summary_csv_append = summary_csv_raw.get("append", True)
+    if not isinstance(summary_csv_append, bool):
+        raise ValueError("fitting.summary_csv.append must be a boolean.")
     summary_csv = {
         "enabled": bool(summary_csv_enabled),
         "path": summary_csv_path,
+        "append": bool(summary_csv_append),
     }
 
     residuals_raw = fitting.get("residuals") or {}
@@ -316,6 +402,7 @@ def build_report(
     fitting_annotation: dict[str, Any],
     fitting_summary_csv: dict[str, Any],
     residuals: dict[str, Any],
+    origin_session: dict[str, Any],
     warnings: list[str],
     errors: list[str],
 ) -> dict[str, Any]:
@@ -336,6 +423,7 @@ def build_report(
         "fitting_annotation": fitting_annotation,
         "fitting_summary_csv": fitting_summary_csv,
         "residuals": residuals,
+        "origin_session": origin_session,
         "manual_intervention": MANUAL_INTERVENTION,
         "warnings": warnings,
         "errors": errors,
@@ -682,6 +770,7 @@ def append_summary_csv_row(
     input_path: Path | None,
     fit_results: list[dict[str, Any]],
     annotation_applied: bool,
+    append: bool = True,
 ) -> tuple[int, list[str]]:
     import csv
 
@@ -703,6 +792,13 @@ def append_summary_csv_row(
         "annotation_applied",
     ]
     summary_csv_path.parent.mkdir(parents=True, exist_ok=True)
+    if not append and summary_csv_path.exists():
+        try:
+            summary_csv_path.unlink()
+        except Exception as exc:  # noqa: BLE001 - record warning, continue
+            warnings.append(
+                f"failed to truncate fitting summary CSV before write: {type(exc).__name__}: {exc}"
+            )
     file_exists = summary_csv_path.exists()
     try:
         with summary_csv_path.open("a", newline="", encoding="utf-8") as fh:
@@ -785,6 +881,7 @@ def main() -> int:
         "path": None,
         "exists": False,
         "rows_written": 0,
+        "append": True,
         "warnings": [],
     }
     residuals_info: dict[str, Any] = {
@@ -793,6 +890,17 @@ def main() -> int:
         "residual_plot_requested": False,
         "residual_plot_outputs": [],
         "warnings": [],
+    }
+    origin_session_info: dict[str, Any] = {
+        "retry_on_com_error": True,
+        "max_retries": 1,
+        "kill_stale_origin_before_retry": True,
+        "retry_delay_seconds": 2.0,
+        "attempts": 0,
+        "retry_used": False,
+        "stale_origin_killed": False,
+        "session_errors": [],
+        "final_session_status": "not_started",
     }
     op = None
 
@@ -835,6 +943,7 @@ def main() -> int:
             "path": summary_csv_cfg.get("path") if summary_csv_cfg.get("enabled") else None,
             "exists": False,
             "rows_written": 0,
+            "append": bool(summary_csv_cfg.get("append", True)),
             "warnings": [],
         }
         residuals_info = {
@@ -861,230 +970,326 @@ def main() -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
         outputs = requested_outputs(effective_config, output_dir, basename)
 
-        import originpro as op  # type: ignore
+        session_cfg = normalize_session_config(effective_config)
+        origin_session_info.update(
+            {
+                "retry_on_com_error": session_cfg["retry_on_com_error"],
+                "max_retries": session_cfg["max_retries"],
+                "kill_stale_origin_before_retry": session_cfg["kill_stale_origin_before_retry"],
+                "retry_delay_seconds": session_cfg["retry_delay_seconds"],
+            }
+        )
 
-        try:
-            op.set_show(bool(effective_config.get("show_origin", True)))
-        except Exception:
-            print("FAIL: op.set_show failed")
-            traceback.print_exc()
-            raise
+        # Snapshot state that the Origin pipeline mutates so retries start clean.
+        baseline_warnings = list(warnings)
+        baseline_style_features = list(style_info.get("applied_style_features", []))
+        baseline_style_warnings = list(style_info.get("style_warnings", []))
+        baseline_errorbar_warnings = list(errorbar_info.get("warnings", []))
+        baseline_fitting_warnings = list(fitting_info.get("warnings", []))
+        baseline_fit_models_state = [
+            {
+                "curve_added_to_origin": bool(model.get("curve_added_to_origin", False)),
+                "warnings": list(model.get("warnings", [])),
+            }
+            for model in fitting_info["models"]
+        ]
 
-        wks = op.new_sheet()
-        wks.from_df(plot_df)
-        try:
-            wks.cols_axis("X" + "Y" * len(y_columns))
-        except Exception as exc:  # noqa: BLE001 - non-critical axis role metadata
-            warnings.append(f"Could not set worksheet column axis metadata: {type(exc).__name__}: {exc}")
+        max_attempts = max(1, int(session_cfg["max_retries"]) + 1)
+        attempt_index = 0
+        last_session_exc: BaseException | None = None
+        op = None
 
-        template, plot_type = graph_template_and_plot_type(graph_type, warnings)
-        try:
-            graph = op.new_graph(template=template)
-        except Exception as exc:  # noqa: BLE001 - fallback keeps requested plot moving
-            warnings.append(
-                f"Could not create graph template '{template}' ({type(exc).__name__}: {exc}); fallback to line."
-            )
-            graph = op.new_graph(template="line")
-            plot_type = "l"
-
-        layer = graph[0]
-        col_indices = column_index_map(plot_df)
-        errorbar_applied_count = 0
-        for y_col in y_columns:
-            colyerr = col_indices.get(y_error_columns.get(y_col, ""), -1)
-            colxerr = col_indices.get(x_error_column, -1) if x_error_column else -1
-            try:
-                plot = layer.add_plot(
-                    wks,
-                    coly=col_indices[y_col],
-                    colx=col_indices[x_column],
-                    type=plot_type,
-                    colyerr=colyerr,
-                    colxerr=colxerr,
-                )
-                if graph_type == "errorbar" and colyerr != -1 and plot is not None:
-                    errorbar_applied_count += 1
-            except Exception as exc:  # noqa: BLE001 - fallback to ordinary plot and report honestly
-                if graph_type == "errorbar":
-                    errorbar_info["warnings"].append(
-                        f"Could not create errorbar plot for {y_col}; fallback to ordinary plot: {type(exc).__name__}: {exc}"
-                    )
-                plot = layer.add_plot(wks, coly=col_indices[y_col], colx=col_indices[x_column], type=plot_type)
-            if plot is None and plot_type != "l":
-                warnings.append(f"{graph_type} plot type was not accepted for {y_col}; fallback to line.")
-                plot = layer.add_plot(wks, coly=col_indices[y_col], colx=col_indices[x_column], type="l")
-            if plot is None:
-                raise RuntimeError(f"Origin did not create plot for Y column: {y_col}")
-            try:
-                plot.name = str(y_col)
-            except Exception:
-                pass
-            apply_plot_style(plot, settings, style_info)
-
-        fit_curve_added_count = 0
-        for model_result in fitting_info["models"]:
-            fit_x_column = model_result.get("fit_x_column")
-            fit_y_column = model_result.get("fit_y_column")
-            if not fit_x_column or not fit_y_column:
-                continue
-            try:
-                fit_plot = layer.add_plot(
-                    wks,
-                    coly=col_indices[str(fit_y_column)],
-                    colx=col_indices[str(fit_x_column)],
-                    type="l",
-                )
-                if fit_plot is None:
-                    raise RuntimeError("Origin returned no plot object")
-                try:
-                    fit_plot.name = str(model_result["name"])
-                except Exception:
-                    pass
-                model_result["curve_added_to_origin"] = True
-                fit_curve_added_count += 1
-            except Exception as exc:  # noqa: BLE001 - report without failing core plot
-                warning = f"Could not add fit curve {model_result['name']} to Origin graph: {type(exc).__name__}: {exc}"
-                model_result["warnings"].append(warning)
-                fitting_info["warnings"].append(warning)
-
-        if fitting_info["requested"]:
-            requested_fit_count = len(fitting_info["models"])
-            fitting_info["applied"] = requested_fit_count > 0 and fit_curve_added_count == requested_fit_count
-            if requested_fit_count == 0:
-                fitting_info["warnings"].append("fitting.enabled=true but no supported fit models were available.")
-            elif not fitting_info["applied"]:
-                fitting_info["warnings"].append(
-                    f"Only added {fit_curve_added_count} of {requested_fit_count} requested fit curve(s) to Origin."
-                )
-
-        if graph_type == "errorbar":
-            expected_errorbars = len(y_error_columns)
-            errorbar_info["applied"] = expected_errorbars > 0 and errorbar_applied_count == expected_errorbars
-            if expected_errorbars == 0:
-                errorbar_info["warnings"].append("No y_error_columns provided; generated ordinary plot output.")
-            elif not errorbar_info["applied"]:
-                errorbar_info["warnings"].append(
-                    f"Only applied {errorbar_applied_count} of {expected_errorbars} requested Y error column(s)."
-                )
-
-        title = str(effective_config.get("graph_title") or input_path.name)
-        if settings.get("title_enabled", True):
-            try:
-                graph.lt_exec(f'title.text$ = "{title}";')
-                style_info["applied_style_features"].append("graph.title")
-            except Exception as exc:  # noqa: BLE001 - title is cosmetic, plot can still export
-                style_info["style_warnings"].append(f"Could not set graph title: {type(exc).__name__}: {exc}")
-        else:
-            style_info["applied_style_features"].append("graph.title_disabled")
-
-        try:
-            if settings.get("x_title_enabled", True):
-                layer.axis("x").title = str(effective_config.get("x_title") or x_column)
-                style_info["applied_style_features"].append("axis.x_title")
-            if settings.get("y_title_enabled", True):
-                layer.axis("y").title = str(effective_config.get("y_title") or ", ".join(y_columns))
-                style_info["applied_style_features"].append("axis.y_title")
-        except Exception as exc:  # noqa: BLE001 - labels are reported but not fatal
-            style_info["style_warnings"].append(f"Could not set axis title(s): {type(exc).__name__}: {exc}")
-
-        if settings.get("legend_enabled", True):
-            try:
-                graph.lt_exec("legend -r;")
-                style_info["applied_style_features"].append("graph.legend")
-            except Exception as exc:  # noqa: BLE001 - legend is reported but not fatal
-                style_info["style_warnings"].append(f"Could not refresh legend: {type(exc).__name__}: {exc}")
-        else:
-            try:
-                graph.lt_exec("legend -d;")
-                style_info["applied_style_features"].append("graph.legend_disabled")
-            except Exception as exc:  # noqa: BLE001 - legend removal support varies
-                style_info["style_warnings"].append(f"Could not disable legend: {type(exc).__name__}: {exc}")
-
-        if settings.get("rescale", True):
-            layer.rescale()
-            style_info["applied_style_features"].append("graph.rescale")
-
-        if fitting_annotation_info["requested"]:
-            applied_count = 0
-            try:
-                xlim = layer.xlim
-                ylim = layer.ylim
-            except Exception as exc:  # noqa: BLE001 - axis range may be unavailable on some Origin versions
-                xlim = None
-                ylim = None
-                fitting_annotation_info["warnings"].append(
-                    f"could not read layer axis range for annotation placement: {type(exc).__name__}: {exc}"
-                )
-
-            anchor_x_frac, anchor_y_frac = annotation_anchor_text(annotation_cfg.get("position", "top_right"))
-            applicable = [m for m in fitting_info["models"] if m.get("coefficients")]
-            for index, model_result in enumerate(applicable):
-                text = build_annotation_text(model_result, annotation_cfg)
-                if not text:
-                    continue
-                place_x: float | None
-                place_y: float | None
-                if (
-                    isinstance(xlim, (tuple, list))
-                    and isinstance(ylim, (tuple, list))
-                    and len(xlim) >= 2
-                    and len(ylim) >= 2
-                ):
+        while attempt_index < max_attempts:
+            attempt_index += 1
+            origin_session_info["attempts"] = attempt_index
+            if attempt_index > 1:
+                origin_session_info["retry_used"] = True
+                # Reset per-attempt mutable state.
+                warnings.clear()
+                warnings.extend(baseline_warnings)
+                style_info["applied_style_features"] = list(baseline_style_features)
+                style_info["style_warnings"] = list(baseline_style_warnings)
+                errorbar_info["applied"] = False
+                errorbar_info["warnings"] = list(baseline_errorbar_warnings)
+                fitting_info["applied"] = False
+                fitting_info["warnings"] = list(baseline_fitting_warnings)
+                for model, baseline in zip(fitting_info["models"], baseline_fit_models_state):
+                    model["curve_added_to_origin"] = bool(baseline["curve_added_to_origin"])
+                    model["warnings"] = list(baseline["warnings"])
+                fitting_annotation_info["applied"] = False
+                fitting_annotation_info["texts"] = []
+                fitting_annotation_info["warnings"] = []
+                if op is not None:
                     try:
-                        x_min = float(xlim[0])
-                        x_max = float(xlim[1])
-                        y_min = float(ylim[0])
-                        y_max = float(ylim[1])
-                        place_x = x_min + (x_max - x_min) * anchor_x_frac
-                        # stagger vertically when there are multiple annotations
-                        offset_frac = 0.08 * index
-                        place_y = y_min + (y_max - y_min) * max(0.0, anchor_y_frac - offset_frac)
-                    except Exception as exc:  # noqa: BLE001
-                        fitting_annotation_info["warnings"].append(
-                            f"failed to compute annotation position for {model_result['name']}: {type(exc).__name__}: {exc}"
-                        )
-                        place_x = None
-                        place_y = None
-                else:
-                    place_x = None
-                    place_y = None
+                        op.exit()
+                    except Exception:
+                        pass
+                    op = None
+                if session_cfg["kill_stale_origin_before_retry"] and sys.platform.startswith("win"):
+                    killed, kill_notes = kill_stale_origin_processes()
+                    if killed:
+                        origin_session_info["stale_origin_killed"] = True
+                    for note in kill_notes:
+                        origin_session_info["session_errors"].append(f"taskkill: {note}")
+                if session_cfg["retry_delay_seconds"] > 0:
+                    time.sleep(session_cfg["retry_delay_seconds"])
+
+            try:
+                import originpro as op  # type: ignore
 
                 try:
-                    label = layer.add_label(text, place_x, place_y)
-                    if label is None:
-                        raise RuntimeError("layer.add_label returned None")
-                    fitting_annotation_info["texts"].append(
-                        {
-                            "fit_name": model_result.get("name"),
-                            "text": text,
-                            "x": place_x,
-                            "y": place_y,
-                        }
-                    )
-                    applied_count += 1
-                except Exception as exc:  # noqa: BLE001 - annotation is best-effort
-                    warning = (
-                        f"could not add annotation for {model_result.get('name')}: {type(exc).__name__}: {exc}"
-                    )
-                    fitting_annotation_info["warnings"].append(warning)
+                    op.set_show(bool(effective_config.get("show_origin", True)))
+                except Exception:
+                    print("FAIL: op.set_show failed")
+                    traceback.print_exc()
+                    raise
 
-            requested_count = len(applicable)
-            fitting_annotation_info["applied"] = requested_count > 0 and applied_count == requested_count
-            if requested_count == 0:
-                fitting_annotation_info["warnings"].append(
-                    "fitting.annotation.enabled=true but no fit models with coefficients were available."
-                )
-            elif not fitting_annotation_info["applied"]:
-                fitting_annotation_info["warnings"].append(
-                    f"only added {applied_count} of {requested_count} fit annotation(s) to Origin."
-                )
+                wks = op.new_sheet()
+                wks.from_df(plot_df)
+                try:
+                    wks.cols_axis("X" + "Y" * len(y_columns))
+                except Exception as exc:  # noqa: BLE001 - non-critical axis role metadata
+                    warnings.append(f"Could not set worksheet column axis metadata: {type(exc).__name__}: {exc}")
 
-        if outputs["png"] is not None:
-            graph.save_fig(str(outputs["png"]), width=int(effective_config.get("png_width") or 0))
-        if outputs["pdf"] is not None:
-            graph.save_fig(str(outputs["pdf"]))
-        if outputs["opju"] is not None:
-            op.save(str(outputs["opju"]))
+                template, plot_type = graph_template_and_plot_type(graph_type, warnings)
+                try:
+                    graph = op.new_graph(template=template)
+                except Exception as exc:  # noqa: BLE001 - fallback keeps requested plot moving
+                    warnings.append(
+                        f"Could not create graph template '{template}' ({type(exc).__name__}: {exc}); fallback to line."
+                    )
+                    graph = op.new_graph(template="line")
+                    plot_type = "l"
+
+                layer = graph[0]
+                col_indices = column_index_map(plot_df)
+                errorbar_applied_count = 0
+                for y_col in y_columns:
+                    colyerr = col_indices.get(y_error_columns.get(y_col, ""), -1)
+                    colxerr = col_indices.get(x_error_column, -1) if x_error_column else -1
+                    try:
+                        plot = layer.add_plot(
+                            wks,
+                            coly=col_indices[y_col],
+                            colx=col_indices[x_column],
+                            type=plot_type,
+                            colyerr=colyerr,
+                            colxerr=colxerr,
+                        )
+                        if graph_type == "errorbar" and colyerr != -1 and plot is not None:
+                            errorbar_applied_count += 1
+                    except Exception as exc:  # noqa: BLE001 - fallback to ordinary plot and report honestly
+                        if graph_type == "errorbar":
+                            errorbar_info["warnings"].append(
+                                f"Could not create errorbar plot for {y_col}; fallback to ordinary plot: {type(exc).__name__}: {exc}"
+                            )
+                        plot = layer.add_plot(wks, coly=col_indices[y_col], colx=col_indices[x_column], type=plot_type)
+                    if plot is None and plot_type != "l":
+                        warnings.append(f"{graph_type} plot type was not accepted for {y_col}; fallback to line.")
+                        plot = layer.add_plot(wks, coly=col_indices[y_col], colx=col_indices[x_column], type="l")
+                    if plot is None:
+                        raise RuntimeError(f"Origin did not create plot for Y column: {y_col}")
+                    try:
+                        plot.name = str(y_col)
+                    except Exception:
+                        pass
+                    apply_plot_style(plot, settings, style_info)
+
+                fit_curve_added_count = 0
+                for model_result in fitting_info["models"]:
+                    fit_x_column = model_result.get("fit_x_column")
+                    fit_y_column = model_result.get("fit_y_column")
+                    if not fit_x_column or not fit_y_column:
+                        continue
+                    try:
+                        fit_plot = layer.add_plot(
+                            wks,
+                            coly=col_indices[str(fit_y_column)],
+                            colx=col_indices[str(fit_x_column)],
+                            type="l",
+                        )
+                        if fit_plot is None:
+                            raise RuntimeError("Origin returned no plot object")
+                        try:
+                            fit_plot.name = str(model_result["name"])
+                        except Exception:
+                            pass
+                        model_result["curve_added_to_origin"] = True
+                        fit_curve_added_count += 1
+                    except Exception as exc:  # noqa: BLE001 - report without failing core plot
+                        warning = f"Could not add fit curve {model_result['name']} to Origin graph: {type(exc).__name__}: {exc}"
+                        model_result["warnings"].append(warning)
+                        fitting_info["warnings"].append(warning)
+
+                if fitting_info["requested"]:
+                    requested_fit_count = len(fitting_info["models"])
+                    fitting_info["applied"] = requested_fit_count > 0 and fit_curve_added_count == requested_fit_count
+                    if requested_fit_count == 0:
+                        fitting_info["warnings"].append("fitting.enabled=true but no supported fit models were available.")
+                    elif not fitting_info["applied"]:
+                        fitting_info["warnings"].append(
+                            f"Only added {fit_curve_added_count} of {requested_fit_count} requested fit curve(s) to Origin."
+                        )
+
+                if graph_type == "errorbar":
+                    expected_errorbars = len(y_error_columns)
+                    errorbar_info["applied"] = expected_errorbars > 0 and errorbar_applied_count == expected_errorbars
+                    if expected_errorbars == 0:
+                        errorbar_info["warnings"].append("No y_error_columns provided; generated ordinary plot output.")
+                    elif not errorbar_info["applied"]:
+                        errorbar_info["warnings"].append(
+                            f"Only applied {errorbar_applied_count} of {expected_errorbars} requested Y error column(s)."
+                        )
+
+                title = str(effective_config.get("graph_title") or input_path.name)
+                if settings.get("title_enabled", True):
+                    try:
+                        graph.lt_exec(f'title.text$ = "{title}";')
+                        style_info["applied_style_features"].append("graph.title")
+                    except Exception as exc:  # noqa: BLE001 - title is cosmetic, plot can still export
+                        style_info["style_warnings"].append(f"Could not set graph title: {type(exc).__name__}: {exc}")
+                else:
+                    style_info["applied_style_features"].append("graph.title_disabled")
+
+                try:
+                    if settings.get("x_title_enabled", True):
+                        layer.axis("x").title = str(effective_config.get("x_title") or x_column)
+                        style_info["applied_style_features"].append("axis.x_title")
+                    if settings.get("y_title_enabled", True):
+                        layer.axis("y").title = str(effective_config.get("y_title") or ", ".join(y_columns))
+                        style_info["applied_style_features"].append("axis.y_title")
+                except Exception as exc:  # noqa: BLE001 - labels are reported but not fatal
+                    style_info["style_warnings"].append(f"Could not set axis title(s): {type(exc).__name__}: {exc}")
+
+                if settings.get("legend_enabled", True):
+                    try:
+                        graph.lt_exec("legend -r;")
+                        style_info["applied_style_features"].append("graph.legend")
+                    except Exception as exc:  # noqa: BLE001 - legend is reported but not fatal
+                        style_info["style_warnings"].append(f"Could not refresh legend: {type(exc).__name__}: {exc}")
+                else:
+                    try:
+                        graph.lt_exec("legend -d;")
+                        style_info["applied_style_features"].append("graph.legend_disabled")
+                    except Exception as exc:  # noqa: BLE001 - legend removal support varies
+                        style_info["style_warnings"].append(f"Could not disable legend: {type(exc).__name__}: {exc}")
+
+                if settings.get("rescale", True):
+                    layer.rescale()
+                    style_info["applied_style_features"].append("graph.rescale")
+
+                if fitting_annotation_info["requested"]:
+                    applied_count = 0
+                    try:
+                        xlim = layer.xlim
+                        ylim = layer.ylim
+                    except Exception as exc:  # noqa: BLE001 - axis range may be unavailable on some Origin versions
+                        xlim = None
+                        ylim = None
+                        fitting_annotation_info["warnings"].append(
+                            f"could not read layer axis range for annotation placement: {type(exc).__name__}: {exc}"
+                        )
+
+                    anchor_x_frac, anchor_y_frac = annotation_anchor_text(annotation_cfg.get("position", "top_right"))
+                    applicable = [m for m in fitting_info["models"] if m.get("coefficients")]
+                    for index, model_result in enumerate(applicable):
+                        text = build_annotation_text(model_result, annotation_cfg)
+                        if not text:
+                            continue
+                        place_x: float | None
+                        place_y: float | None
+                        if (
+                            isinstance(xlim, (tuple, list))
+                            and isinstance(ylim, (tuple, list))
+                            and len(xlim) >= 2
+                            and len(ylim) >= 2
+                        ):
+                            try:
+                                x_min = float(xlim[0])
+                                x_max = float(xlim[1])
+                                y_min = float(ylim[0])
+                                y_max = float(ylim[1])
+                                place_x = x_min + (x_max - x_min) * anchor_x_frac
+                                # stagger vertically when there are multiple annotations
+                                offset_frac = 0.08 * index
+                                place_y = y_min + (y_max - y_min) * max(0.0, anchor_y_frac - offset_frac)
+                            except Exception as exc:  # noqa: BLE001
+                                fitting_annotation_info["warnings"].append(
+                                    f"failed to compute annotation position for {model_result['name']}: {type(exc).__name__}: {exc}"
+                                )
+                                place_x = None
+                                place_y = None
+                        else:
+                            place_x = None
+                            place_y = None
+
+                        try:
+                            label = layer.add_label(text, place_x, place_y)
+                            if label is None:
+                                raise RuntimeError("layer.add_label returned None")
+                            fitting_annotation_info["texts"].append(
+                                {
+                                    "fit_name": model_result.get("name"),
+                                    "text": text,
+                                    "x": place_x,
+                                    "y": place_y,
+                                }
+                            )
+                            applied_count += 1
+                        except Exception as exc:  # noqa: BLE001 - annotation is best-effort
+                            warning = (
+                                f"could not add annotation for {model_result.get('name')}: {type(exc).__name__}: {exc}"
+                            )
+                            fitting_annotation_info["warnings"].append(warning)
+
+                    requested_count = len(applicable)
+                    fitting_annotation_info["applied"] = requested_count > 0 and applied_count == requested_count
+                    if requested_count == 0:
+                        fitting_annotation_info["warnings"].append(
+                            "fitting.annotation.enabled=true but no fit models with coefficients were available."
+                        )
+                    elif not fitting_annotation_info["applied"]:
+                        fitting_annotation_info["warnings"].append(
+                            f"only added {applied_count} of {requested_count} fit annotation(s) to Origin."
+                        )
+
+                if outputs["png"] is not None:
+                    graph.save_fig(str(outputs["png"]), width=int(effective_config.get("png_width") or 0))
+                if outputs["pdf"] is not None:
+                    graph.save_fig(str(outputs["pdf"]))
+                if outputs["opju"] is not None:
+                    op.save(str(outputs["opju"]))
+            except Exception as exc:  # noqa: BLE001 - capture all Origin/COM errors
+                exc_text = f"{type(exc).__module__}.{type(exc).__name__}: {exc}"
+                print(f"Origin pipeline attempt {attempt_index} failed: {exc_text}")
+                traceback.print_exc()
+                origin_session_info["session_errors"].append(
+                    f"attempt {attempt_index}: {exc_text}"
+                )
+                if not session_cfg["retry_on_com_error"]:
+                    last_session_exc = exc
+                    break
+                if not is_session_error(exc):
+                    last_session_exc = exc
+                    break
+                if attempt_index >= max_attempts:
+                    last_session_exc = exc
+                    break
+                last_session_exc = exc
+                continue
+            else:
+                # Pipeline succeeded for this attempt.
+                last_session_exc = None
+                break
+
+        if origin_session_info["retry_used"] and last_session_exc is None:
+            origin_session_info["final_session_status"] = "ok_after_retry"
+        elif last_session_exc is None:
+            origin_session_info["final_session_status"] = "ok"
+        else:
+            origin_session_info["final_session_status"] = "failed"
+            raise last_session_exc
+
 
         residual_records: dict[str, list[dict[str, float]]] = {}
         if (residuals_info["csv_requested"] or residuals_info["residual_plot_requested"]) and fitting_info["models"]:
@@ -1122,10 +1327,12 @@ def main() -> int:
                 input_path,
                 fitting_info["models"],
                 bool(fitting_annotation_info.get("applied")),
+                append=bool(summary_csv_cfg.get("append", True)),
             )
             fitting_summary_csv_info["path"] = rel(summary_csv_path)
             fitting_summary_csv_info["exists"] = summary_csv_path.exists()
             fitting_summary_csv_info["rows_written"] = rows_written
+            fitting_summary_csv_info["append"] = bool(summary_csv_cfg.get("append", True))
             fitting_summary_csv_info["warnings"].extend(summary_warnings)
         elif fitting_summary_csv_info["requested"]:
             fitting_summary_csv_info["warnings"].append(
@@ -1148,6 +1355,8 @@ def main() -> int:
             status = "PASS with warnings"
         if status == "PASS" and residuals_info["warnings"]:
             status = "PASS with warnings"
+        if status == "PASS" and origin_session_info.get("retry_used"):
+            status = "PASS with session_retry"
         if missing:
             errors.append(f"Missing requested outputs: {missing}")
             print("FAIL: missing requested Origin outputs:")
@@ -1173,11 +1382,12 @@ def main() -> int:
             fitting_annotation_info,
             fitting_summary_csv_info,
             residuals_info,
+            origin_session_info,
             warnings,
             errors,
         )
         save_report(report)
-        return 0 if status in {"PASS", "PASS with warnings"} else 1
+        return 0 if status in {"PASS", "PASS with warnings", "PASS with session_retry"} else 1
 
     except Exception as exc:  # noqa: BLE001 - print full traceback for automation failures
         errors.append(f"{type(exc).__name__}: {exc}")
@@ -1199,6 +1409,7 @@ def main() -> int:
             fitting_annotation_info,
             fitting_summary_csv_info,
             residuals_info,
+            origin_session_info,
             warnings,
             errors,
         )

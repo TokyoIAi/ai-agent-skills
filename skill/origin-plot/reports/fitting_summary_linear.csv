@@ -1,0 +1,2 @@
+config,input_file,fit_name,y_column,model,degree,coefficients,equation,r_squared,residual_sum_of_squares,n_points,curve_added_to_origin,annotation_applied
+configs\fitting\linear_fit_config.yaml,data\fit_sample.csv,linear_fit_y,y,linear,1,1.988571429;1.095238095,y = 1.98857*x + 1.09524,0.9975343895,0.171047619,6,True,True

@@ -100,13 +100,14 @@ def read_single_report() -> dict[str, Any] | None:
 
 def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> dict[str, Any]:
     report_status = str(report.get("status"))
-    status = report_status if report_status in {"PASS", "PASS with warnings"} else "FAIL"
+    status = report_status if report_status in {"PASS", "PASS with warnings", "PASS with session_retry"} else "FAIL"
     style = report.get("style") or {}
     errorbar = report.get("errorbar") or {}
     fitting = report.get("fitting") or {}
     fitting_annotation = report.get("fitting_annotation") or {}
     fitting_summary_csv = report.get("fitting_summary_csv") or {}
     residuals = report.get("residuals") or {}
+    origin_session = report.get("origin_session") or {}
     return {
         "name": name,
         "config": config,
@@ -120,7 +121,10 @@ def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> di
         "fitting_annotation": fitting_annotation,
         "fitting_summary_csv": fitting_summary_csv,
         "residuals": residuals,
-        "error": None if status in {"PASS", "PASS with warnings"} else "; ".join(report.get("errors") or ["plot failed"]),
+        "origin_session": origin_session,
+        "error": None
+        if status in {"PASS", "PASS with warnings", "PASS with session_retry"}
+        else "; ".join(report.get("errors") or ["plot failed"]),
     }
 
 
@@ -174,7 +178,7 @@ def batch_status(passed_count: int, failed_count: int) -> str:
 
 
 def is_job_pass(job: dict[str, Any]) -> bool:
-    return job.get("status") in {"PASS", "PASS with warnings"}
+    return job.get("status") in {"PASS", "PASS with warnings", "PASS with session_retry"}
 
 
 def save_batch_report(report: dict[str, Any]) -> None:
@@ -322,6 +326,32 @@ def fit_artifact_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def origin_session_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    retries_used = 0
+    stale_killed = 0
+    failed_sessions = 0
+    ok_after_retry = 0
+    total_session_errors = 0
+    for job in results:
+        session = job.get("origin_session") or {}
+        if session.get("retry_used"):
+            retries_used += 1
+        if session.get("stale_origin_killed"):
+            stale_killed += 1
+        if session.get("final_session_status") == "ok_after_retry":
+            ok_after_retry += 1
+        if session.get("final_session_status") == "failed":
+            failed_sessions += 1
+        total_session_errors += len(session.get("session_errors") or [])
+    return {
+        "jobs_with_retry_used": retries_used,
+        "jobs_with_stale_origin_killed": stale_killed,
+        "jobs_ok_after_retry": ok_after_retry,
+        "jobs_session_failed": failed_sessions,
+        "total_session_errors": total_session_errors,
+    }
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -389,6 +419,7 @@ def main() -> int:
         "errorbar_summary": errorbar_summary(results),
         "fitting_summary": fitting_summary(results),
         "fit_artifact_summary": fit_artifact_summary(results),
+        "origin_session_summary": origin_session_summary(results),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,

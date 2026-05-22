@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.
+Current version: v0.8.1.
 
 ## Supported formats
 
@@ -314,6 +314,115 @@ Annotation, summary CSV, and residual plot generation are best-effort artifacts.
 ### Backward compatibility
 
 Configurations without `fitting.annotation`, `fitting.summary_csv`, or `fitting.residuals` continue to work. Reports always emit the three v0.8 fields (`fitting_annotation`, `fitting_summary_csv`, `residuals`) with `requested=false` defaults.
+
+## v0.8.1 Origin Session Stability and Fit Artifact Hygiene
+
+v0.8.1 hardens Origin COM session handling, makes the fitting summary CSV idempotent, and adds a cross-report artifact summary tool. No new plot styles, fit models, or layout work is included.
+
+### Why retries are needed
+
+The Origin COM bridge through `originpro` / `OriginExt` can occasionally raise transient errors after several chained sessions, for example:
+
+- `RuntimeError: Exception in OriginExt::ApplicationBase::LT_execute ==> 无效指针`
+- `SystemError: <built-in function ApplicationBase_LT_execute> returned a result with an exception set`
+
+Stopping any stale `Origin64.exe` and starting a fresh session typically clears the issue. v0.8.1 captures these failures and can retry once with a clean handle instead of failing.
+
+### `origin_session` schema
+
+```yaml
+origin_session:
+  retry_on_com_error: true
+  max_retries: 1
+  kill_stale_origin_before_retry: true
+  retry_delay_seconds: 2
+```
+
+Defaults match the example. `max_retries` is capped between 0 and 5; `retry_delay_seconds` is capped between 0 and 60. The retry strategy is:
+
+1. Wrap the Origin block (`set_show`, worksheet creation, plotting, exports, OPJU save) in an attempt loop.
+2. On failure, classify the exception. Only known Origin/COM markers trigger a retry; non-Origin errors fail fast.
+3. Before retry, call `op.exit()`, optionally run `taskkill /F /IM Origin64.exe` (and `Origin.exe`, `OriginPro.exe`), then sleep `retry_delay_seconds`.
+4. Reset per-attempt state (warnings, applied flags, annotation texts) so the report only reflects the successful attempt.
+5. After a successful retry, the run is reported as `PASS with session_retry`. If retries are exhausted the run is `FAIL` with the exception preserved.
+
+The single-plot report adds:
+
+```json
+"origin_session": {
+  "retry_on_com_error": true,
+  "max_retries": 1,
+  "kill_stale_origin_before_retry": true,
+  "retry_delay_seconds": 2.0,
+  "attempts": 1,
+  "retry_used": false,
+  "stale_origin_killed": false,
+  "session_errors": [],
+  "final_session_status": "ok"
+}
+```
+
+`final_session_status` is one of `ok`, `ok_after_retry`, `failed`, or `not_started` (when the Origin block was never reached).
+
+Process termination is conservative: only `Origin64.exe`, `Origin.exe`, and `OriginPro.exe` are signaled, and only as part of the retry path. The script never auto-clicks Origin GUI dialogs.
+
+### Fit summary CSV append policy
+
+`fitting.summary_csv` now accepts `append`:
+
+```yaml
+fitting:
+  summary_csv:
+    enabled: true
+    path: "reports/fitting_summary_linear.csv"
+    append: false
+```
+
+`append: true` (default) preserves existing rows across runs. `append: false` truncates the file before writing the current run, which avoids accumulating stale rows when a config is rerun. Pair distinct configs with distinct paths (`fitting_summary_linear.csv`, `fitting_summary_poly2.csv`) when both use `append: false`.
+
+The single-plot report now records `append`:
+
+```json
+"fitting_summary_csv": {
+  "requested": true,
+  "path": "reports/fitting_summary_linear.csv",
+  "exists": true,
+  "rows_written": 1,
+  "append": false,
+  "warnings": []
+}
+```
+
+### Fitting batch sample
+
+`configs/batch/fitting_batch_config.yaml` exercises both fit configs in one batch so the v0.8 `fit_artifact_summary` counters are non-zero in routine acceptance:
+
+```powershell
+py scripts\origin_batch_plot.py --batch-config configs\batch\fitting_batch_config.yaml
+```
+
+The batch report adds an `origin_session_summary` block alongside `fit_artifact_summary` to count retry usage across jobs.
+
+### Cross-report artifact summary
+
+`scripts/summarize_fit_artifacts.py` reads one or more single-plot or batch reports and writes `reports/origin_plot_v0_8_artifact_report.json` with deduplicated counts and per-artifact existence checks:
+
+```powershell
+py scripts\summarize_fit_artifacts.py --reports reports\origin_plot_v0_2_report.json reports\origin_plot_v0_3_batch_report.json
+py scripts\summarize_fit_artifacts.py --reports-dir reports
+```
+
+The summary includes `summary_csv_outputs`, `residual_csv_outputs`, `residual_plot_outputs`, and a `missing_artifacts` list whenever the report-recorded path is no longer on disk. The aggregator never scans `output/` directly; it only reports the paths the source reports recorded.
+
+### Status policy update
+
+`PASS with session_retry` is treated as a passing status by the batch script, the artifact summarizer, and the single-plot exit code. The single-plot status precedence is:
+
+1. `FAIL` if requested PNG/PDF/OPJU exports are missing.
+2. `PARTIAL PASS` if some requested outputs are missing.
+3. `PASS with warnings` for best-effort artifact issues (annotation, summary CSV, residuals, errorbar/fit overlay).
+4. `PASS with session_retry` when retry was used to recover the Origin session.
+5. `PASS` otherwise.
 
 ## YAML fields
 

@@ -219,9 +219,13 @@ def normalize_fit_artifacts(config: dict[str, Any]) -> tuple[dict[str, Any], dic
         fail("fitting.summary_csv.path must be a non-empty string.")
     if Path(summary_csv_path).is_absolute():
         fail(f"fitting.summary_csv.path must be a relative path: {summary_csv_path}")
+    summary_csv_append_raw = summary_csv.get("append", True)
+    if not isinstance(summary_csv_append_raw, bool):
+        fail("fitting.summary_csv.append must be a boolean.")
     summary_csv_summary = {
         "enabled": bool(summary_csv_enabled_raw),
         "path": summary_csv_path,
+        "append": bool(summary_csv_append_raw),
     }
 
     residuals = fitting.get("residuals") or {}
@@ -245,6 +249,38 @@ def normalize_fit_artifacts(config: dict[str, Any]) -> tuple[dict[str, Any], dic
     }
 
     return annotation_summary, summary_csv_summary, residuals_summary, warnings
+
+
+def normalize_session_summary(config: dict[str, Any]) -> dict[str, Any]:
+    session_raw = config.get("origin_session") or {}
+    if session_raw and not isinstance(session_raw, dict):
+        fail("origin_session must be a mapping.")
+    retry_on_com_error = session_raw.get("retry_on_com_error", True)
+    if not isinstance(retry_on_com_error, bool):
+        fail("origin_session.retry_on_com_error must be a boolean.")
+    max_retries = session_raw.get("max_retries", 1)
+    try:
+        max_retries_int = int(max_retries)
+    except (TypeError, ValueError):
+        fail("origin_session.max_retries must be an integer.")
+    if max_retries_int < 0 or max_retries_int > 5:
+        fail("origin_session.max_retries must be between 0 and 5.")
+    kill_stale = session_raw.get("kill_stale_origin_before_retry", True)
+    if not isinstance(kill_stale, bool):
+        fail("origin_session.kill_stale_origin_before_retry must be a boolean.")
+    delay = session_raw.get("retry_delay_seconds", 2)
+    try:
+        delay_float = float(delay)
+    except (TypeError, ValueError):
+        fail("origin_session.retry_delay_seconds must be a number.")
+    if delay_float < 0 or delay_float > 60:
+        fail("origin_session.retry_delay_seconds must be between 0 and 60.")
+    return {
+        "retry_on_com_error": bool(retry_on_com_error),
+        "max_retries": int(max_retries_int),
+        "kill_stale_origin_before_retry": bool(kill_stale),
+        "retry_delay_seconds": float(delay_float),
+    }
 
 
 def detect_format(input_path: Path, input_format: str | None) -> str:
@@ -328,6 +364,7 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
     y_error_columns, x_error_column, errorbar_warnings = validate_errorbar_columns(config, df, y_columns)
     fitting_enabled, fitting_models, fitting_warnings = normalize_fit_models(config, df, x_column, y_columns)
     annotation_summary, summary_csv_summary, residuals_summary, fit_artifact_warnings = normalize_fit_artifacts(config)
+    session_summary = normalize_session_summary(config)
 
     summary = {
         "input_file": str(config["input_file"]),
@@ -350,6 +387,7 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         "fitting_summary_csv": summary_csv_summary,
         "fitting_residuals": residuals_summary,
         "fit_artifact_validation_warnings": fit_artifact_warnings,
+        "origin_session": session_summary,
         "output_dir": str(config["output_dir"]),
         "output_basename": str(config["output_basename"]),
     }

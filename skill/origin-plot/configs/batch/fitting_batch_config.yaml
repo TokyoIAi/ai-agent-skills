@@ -1,0 +1,7 @@
+batch_name: "fitting_batch_v0_8_1"
+continue_on_error: true
+jobs:
+  - name: "linear_fit"
+    config: "configs/fitting/linear_fit_config.yaml"
+  - name: "poly2_fit"
+    config: "configs/fitting/poly2_fit_config.yaml"

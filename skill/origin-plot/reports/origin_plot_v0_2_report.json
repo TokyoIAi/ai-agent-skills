@@ -1,7 +1,7 @@
 {
   "status": "PASS",
-  "config_path": "configs\\errorbar\\errorbar_single_config.yaml",
-  "input_file": "data\\errorbar_sample.csv",
+  "config_path": "configs\\fitting\\poly2_fit_config.yaml",
+  "input_file": "data\\fit_poly_sample.csv",
   "detected_format": "csv",
   "row_count_raw": 6,
   "row_count_used": 6,
@@ -9,22 +9,22 @@
   "y_columns": [
     "y"
   ],
-  "graph_type": "errorbar",
+  "graph_type": "line_symbol",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_errorbar\\errorbar_single.png",
+      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.png",
       "exists": true,
-      "size_bytes": 14210
+      "size_bytes": 21007
     },
     "pdf": {
-      "path": "output\\origin_plot_errorbar\\errorbar_single.pdf",
+      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.pdf",
       "exists": true,
-      "size_bytes": 8334
+      "size_bytes": 16686
     },
     "opju": {
-      "path": "output\\origin_plot_errorbar\\errorbar_single.opju",
+      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.opju",
       "exists": true,
-      "size_bytes": 25118
+      "size_bytes": 30015
     }
   },
   "style": {
@@ -48,40 +48,93 @@
     "style_warnings": []
   },
   "errorbar": {
-    "requested": true,
-    "applied": true,
+    "requested": false,
+    "applied": false,
     "x_error_column": null,
-    "y_error_columns": {
-      "y": "y_err"
-    },
+    "y_error_columns": {},
     "warnings": []
   },
   "fitting": {
-    "requested": false,
-    "applied": false,
-    "models": [],
+    "requested": true,
+    "applied": true,
+    "models": [
+      {
+        "name": "poly2_fit_y",
+        "y_column": "y",
+        "model": "polynomial",
+        "degree": 2,
+        "coefficients": [
+          0.9714285714285724,
+          0.15714285714285295,
+          0.985714285714294
+        ],
+        "equation": "y = 0.971429*x^2 + 0.157143*x + 0.985714",
+        "r_squared": 0.9999278603014738,
+        "residual_sum_of_squares": 0.03428571428571486,
+        "n_points": 6,
+        "curve_added_to_origin": true,
+        "warnings": [],
+        "fit_x_column": "poly2_fit_y_x",
+        "fit_y_column": "poly2_fit_y_y"
+      }
+    ],
     "warnings": []
   },
   "fitting_annotation": {
-    "requested": false,
-    "applied": false,
-    "position": null,
-    "texts": [],
+    "requested": true,
+    "applied": true,
+    "position": "top_left",
+    "texts": [
+      {
+        "fit_name": "poly2_fit_y",
+        "text": "poly2_fit_y\ny = 0.971429*x^2 + 0.157143*x + 0.985714\nR^2 = 0.999928",
+        "x": 0.009000000000000008,
+        "y": 29.025
+      }
+    ],
     "warnings": []
   },
   "fitting_summary_csv": {
-    "requested": false,
-    "path": null,
-    "exists": false,
-    "rows_written": 0,
+    "requested": true,
+    "path": "reports\\fitting_summary_poly2.csv",
+    "exists": true,
+    "rows_written": 1,
+    "append": false,
     "warnings": []
   },
   "residuals": {
-    "csv_requested": false,
-    "csv_outputs": [],
-    "residual_plot_requested": false,
-    "residual_plot_outputs": [],
+    "csv_requested": true,
+    "csv_outputs": [
+      {
+        "fit_name": "poly2_fit_y",
+        "path": "reports\\residuals\\poly2_fit_poly2_fit_y_residuals.csv",
+        "exists": true,
+        "rows_written": 6,
+        "size_bytes": 324
+      }
+    ],
+    "residual_plot_requested": true,
+    "residual_plot_outputs": [
+      {
+        "fit_name": "poly2_fit_y",
+        "png": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.png",
+        "pdf": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.pdf",
+        "png_exists": true,
+        "pdf_exists": true
+      }
+    ],
     "warnings": []
+  },
+  "origin_session": {
+    "retry_on_com_error": true,
+    "max_retries": 1,
+    "kill_stale_origin_before_retry": true,
+    "retry_delay_seconds": 2.0,
+    "attempts": 1,
+    "retry_used": false,
+    "stale_origin_killed": false,
+    "session_errors": [],
+    "final_session_status": "ok"
   },
   "manual_intervention": {
     "user_reported_manual_ok": true,

@@ -193,6 +193,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.6: error bar MVP using `graph_type: errorbar`, `y_error_columns`, and optional `x_error_column`.
 - v0.7: curve fitting MVP using Python-side linear and polynomial fitting, with fit curves added to Origin as generated worksheet columns.
 - v0.8: fit annotation, fitting summary CSV, and residual CSV plus optional residual plot artifacts on top of v0.7.
+- v0.8.1: Origin COM session stability with retry-on-com-error, fit summary CSV append policy, fitting batch sample, and cross-report artifact summarizer.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -551,3 +552,61 @@ The single-plot report includes:
 - Residual PNG and PDF exist when `residuals.generate_residual_plot=true` and matplotlib is available.
 - Batch report includes a `fit_artifact_summary` block with annotation counts, summary CSV outputs, residual CSV count, residual plot count, and jobs with fit-artifact warnings.
 - Reports use relative paths and never claim GUI automation.
+
+## Origin Session Retry Policy (v0.8.1)
+
+The Origin block in `origin_plot_from_config.py` is wrapped in a retry loop driven by `origin_session`:
+
+```yaml
+origin_session:
+  retry_on_com_error: true
+  max_retries: 1
+  kill_stale_origin_before_retry: true
+  retry_delay_seconds: 2
+```
+
+Retry triggers only when an exception text matches known Origin/COM markers (for example `OriginExt`, `originpro`, `ApplicationBase_LT_execute`, `set_show`, `\u65e0\u6548\u6307\u9488`). Non-Origin failures fail fast.
+
+Before each retry the script:
+
+- Calls `op.exit()` to release the previous Origin handle.
+- Optionally runs `taskkill /F /IM Origin64.exe` (and `Origin.exe`, `OriginPro.exe`) when `kill_stale_origin_before_retry=true` and the platform is Windows.
+- Sleeps `retry_delay_seconds`.
+- Resets per-attempt state (warnings, fit/annotation applied flags, annotation texts).
+
+Records every classified failure in `origin_session.session_errors`. Final status is exposed via `origin_session.final_session_status` (`ok`, `ok_after_retry`, `failed`, or `not_started`).
+
+If retry succeeds, the run status moves to `PASS with session_retry`, which the batch script and artifact summarizer treat as passing. Never claim retry succeeded if `final_session_status` is not `ok` or `ok_after_retry`.
+
+## Fitting Summary CSV Append Policy (v0.8.1)
+
+`fitting.summary_csv.append` defaults to `true` to preserve v0.8 behavior. When `append=false`, the script truncates the configured CSV before writing the current run, removing stale rows from prior runs of the same config. Combine `append=false` with distinct paths per config (for example `reports/fitting_summary_linear.csv` and `reports/fitting_summary_poly2.csv`) to avoid mutual overwrites.
+
+The single-plot report now includes `fitting_summary_csv.append`.
+
+## Fit Artifact Summary Workflow (v0.8.1)
+
+`scripts/summarize_fit_artifacts.py` aggregates fit artifacts across single-plot and batch reports. Inputs come from explicit paths (`--reports A.json B.json`) or a directory (`--reports-dir reports`). Output defaults to `reports/origin_plot_v0_8_artifact_report.json` and is always a relative path.
+
+The summary report carries:
+
+- `reports_scanned`, `reports_unreadable`, `scanned_paths`.
+- `fit_models_seen`, `annotations_requested`, `annotations_applied`.
+- Deduplicated `summary_csv_outputs`, `residual_csv_outputs`, and `residual_plot_outputs` with `exists` flags.
+- `missing_artifacts` listing recorded paths that are no longer on disk.
+- `warnings` collected from each entry's annotation, summary CSV, and residuals warnings.
+- `status`: `PASS`, `PASS with warnings` when any artifact is missing, or `FAIL` when nothing was scanned.
+
+The aggregator only inspects paths the source reports recorded. It does not glob `output/` and does not call Origin.
+
+## v0.8.1 Acceptance Criteria
+
+- Validator accepts and reports `origin_session` settings with sane defaults.
+- Validator accepts `fitting.summary_csv.append` as a boolean.
+- Single-plot report carries `origin_session` with `attempts`, `retry_used`, `stale_origin_killed`, `session_errors`, and `final_session_status`.
+- `PASS with session_retry` is honored by the single-plot exit code, batch script, and summarizer.
+- `configs/batch/fitting_batch_config.yaml` exercises both fit configs and produces non-zero `fit_artifact_summary` counters.
+- Batch report includes `origin_session_summary` alongside `fit_artifact_summary`.
+- `scripts/summarize_fit_artifacts.py` writes `reports/origin_plot_v0_8_artifact_report.json` with relative paths and existence checks.
+- All reports remain free of absolute paths (`H:\\`, `C:\\`, `E:\\`).
+- `output/` stays git-ignored; `reports/*.csv`, `reports/residuals/*.csv`, and `reports/origin_plot_v0_8_artifact_report.json` are committable.

@@ -1,30 +1,30 @@
 {
   "status": "PASS",
-  "batch_name": "sample_scan_v0_4",
-  "job_count": 3,
-  "passed_count": 3,
+  "batch_name": "fitting_batch_v0_8_1",
+  "job_count": 2,
+  "passed_count": 2,
   "failed_count": 0,
   "continue_on_error": true,
   "jobs": [
     {
-      "name": "sample_a",
-      "config": "configs\\generated\\sample_a_plot_config.yaml",
+      "name": "linear_fit",
+      "config": "configs\\fitting\\linear_fit_config.yaml",
       "status": "PASS",
       "outputs": {
         "png": {
-          "path": "output\\origin_plot_scan\\sample_a\\sample_a.png",
+          "path": "output\\origin_plot_fitting\\linear_fit.png",
           "exists": true,
-          "size_bytes": 15777
+          "size_bytes": 17585
         },
         "pdf": {
-          "path": "output\\origin_plot_scan\\sample_a\\sample_a.pdf",
+          "path": "output\\origin_plot_fitting\\linear_fit.pdf",
           "exists": true,
-          "size_bytes": 11792
+          "size_bytes": 18425
         },
         "opju": {
-          "path": "output\\origin_plot_scan\\sample_a\\sample_a.opju",
+          "path": "output\\origin_plot_fitting\\linear_fit.opju",
           "exists": true,
-          "size_bytes": 25897
+          "size_bytes": 28566
         }
       },
       "warnings": [],
@@ -38,8 +38,6 @@
           "png_width": 1400
         },
         "applied_style_features": [
-          "line.width",
-          "line.symbol_size",
           "line.width",
           "line.symbol_size",
           "graph.title",
@@ -59,53 +57,107 @@
         "warnings": []
       },
       "fitting": {
-        "requested": false,
-        "applied": false,
-        "models": [],
+        "requested": true,
+        "applied": true,
+        "models": [
+          {
+            "name": "linear_fit_y",
+            "y_column": "y",
+            "model": "linear",
+            "degree": 1,
+            "coefficients": [
+              1.9885714285714278,
+              1.0952380952380938
+            ],
+            "equation": "y = 1.98857*x + 1.09524",
+            "r_squared": 0.9975343895005628,
+            "residual_sum_of_squares": 0.171047619047619,
+            "n_points": 6,
+            "curve_added_to_origin": true,
+            "warnings": [],
+            "fit_x_column": "linear_fit_y_x",
+            "fit_y_column": "linear_fit_y_y"
+          }
+        ],
         "warnings": []
       },
       "fitting_annotation": {
-        "requested": false,
-        "applied": false,
-        "position": null,
-        "texts": [],
+        "requested": true,
+        "applied": true,
+        "position": "top_right",
+        "texts": [
+          {
+            "fit_name": "linear_fit_y",
+            "text": "linear_fit_y\ny = 1.98857*x + 1.09524\nR^2 = 0.997534",
+            "x": 4.9910000000000005,
+            "y": 11.64
+          }
+        ],
         "warnings": []
       },
       "fitting_summary_csv": {
-        "requested": false,
-        "path": null,
-        "exists": false,
-        "rows_written": 0,
+        "requested": true,
+        "path": "reports\\fitting_summary_linear.csv",
+        "exists": true,
+        "rows_written": 1,
+        "append": false,
         "warnings": []
       },
       "residuals": {
-        "csv_requested": false,
-        "csv_outputs": [],
-        "residual_plot_requested": false,
-        "residual_plot_outputs": [],
+        "csv_requested": true,
+        "csv_outputs": [
+          {
+            "fit_name": "linear_fit_y",
+            "path": "reports\\residuals\\linear_fit_linear_fit_y_residuals.csv",
+            "exists": true,
+            "rows_written": 6,
+            "size_bytes": 322
+          }
+        ],
+        "residual_plot_requested": true,
+        "residual_plot_outputs": [
+          {
+            "fit_name": "linear_fit_y",
+            "png": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.png",
+            "pdf": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.pdf",
+            "png_exists": true,
+            "pdf_exists": true
+          }
+        ],
         "warnings": []
+      },
+      "origin_session": {
+        "retry_on_com_error": true,
+        "max_retries": 1,
+        "kill_stale_origin_before_retry": true,
+        "retry_delay_seconds": 2.0,
+        "attempts": 1,
+        "retry_used": false,
+        "stale_origin_killed": false,
+        "session_errors": [],
+        "final_session_status": "ok"
       },
       "error": null
     },
     {
-      "name": "sample_b",
-      "config": "configs\\generated\\sample_b_plot_config.yaml",
+      "name": "poly2_fit",
+      "config": "configs\\fitting\\poly2_fit_config.yaml",
       "status": "PASS",
       "outputs": {
         "png": {
-          "path": "output\\origin_plot_scan\\sample_b\\sample_b.png",
+          "path": "output\\origin_plot_fitting_poly2\\poly2_fit.png",
           "exists": true,
-          "size_bytes": 16378
+          "size_bytes": 21007
         },
         "pdf": {
-          "path": "output\\origin_plot_scan\\sample_b\\sample_b.pdf",
+          "path": "output\\origin_plot_fitting_poly2\\poly2_fit.pdf",
           "exists": true,
-          "size_bytes": 12305
+          "size_bytes": 16686
         },
         "opju": {
-          "path": "output\\origin_plot_scan\\sample_b\\sample_b.opju",
+          "path": "output\\origin_plot_fitting_poly2\\poly2_fit.opju",
           "exists": true,
-          "size_bytes": 27406
+          "size_bytes": 30015
         }
       },
       "warnings": [],
@@ -119,8 +171,6 @@
           "png_width": 1400
         },
         "applied_style_features": [
-          "line.width",
-          "line.symbol_size",
           "line.width",
           "line.symbol_size",
           "graph.title",
@@ -140,112 +190,86 @@
         "warnings": []
       },
       "fitting": {
-        "requested": false,
-        "applied": false,
-        "models": [],
-        "warnings": []
-      },
-      "fitting_annotation": {
-        "requested": false,
-        "applied": false,
-        "position": null,
-        "texts": [],
-        "warnings": []
-      },
-      "fitting_summary_csv": {
-        "requested": false,
-        "path": null,
-        "exists": false,
-        "rows_written": 0,
-        "warnings": []
-      },
-      "residuals": {
-        "csv_requested": false,
-        "csv_outputs": [],
-        "residual_plot_requested": false,
-        "residual_plot_outputs": [],
-        "warnings": []
-      },
-      "error": null
-    },
-    {
-      "name": "sample_c",
-      "config": "configs\\generated\\sample_c_plot_config.yaml",
-      "status": "PASS",
-      "outputs": {
-        "png": {
-          "path": "output\\origin_plot_scan\\sample_c\\sample_c.png",
-          "exists": true,
-          "size_bytes": 17029
-        },
-        "pdf": {
-          "path": "output\\origin_plot_scan\\sample_c\\sample_c.pdf",
-          "exists": true,
-          "size_bytes": 11787
-        },
-        "opju": {
-          "path": "output\\origin_plot_scan\\sample_c\\sample_c.opju",
-          "exists": true,
-          "size_bytes": 26153
-        }
-      },
-      "warnings": [],
-      "style": {
-        "style_profile": "configs\\styles\\lab_report_style.yaml",
-        "export_profile": "configs\\exports\\default_export.yaml",
-        "effective_export_settings": {
-          "export_png": true,
-          "export_pdf": true,
-          "save_opju": true,
-          "png_width": 1400
-        },
-        "applied_style_features": [
-          "line.width",
-          "line.symbol_size",
-          "line.width",
-          "line.symbol_size",
-          "graph.title",
-          "axis.x_title",
-          "axis.y_title",
-          "graph.legend",
-          "graph.rescale"
+        "requested": true,
+        "applied": true,
+        "models": [
+          {
+            "name": "poly2_fit_y",
+            "y_column": "y",
+            "model": "polynomial",
+            "degree": 2,
+            "coefficients": [
+              0.9714285714285724,
+              0.15714285714285295,
+              0.985714285714294
+            ],
+            "equation": "y = 0.971429*x^2 + 0.157143*x + 0.985714",
+            "r_squared": 0.9999278603014738,
+            "residual_sum_of_squares": 0.03428571428571486,
+            "n_points": 6,
+            "curve_added_to_origin": true,
+            "warnings": [],
+            "fit_x_column": "poly2_fit_y_x",
+            "fit_y_column": "poly2_fit_y_y"
+          }
         ],
-        "style_warnings": []
-      },
-      "style_warnings": [],
-      "errorbar": {
-        "requested": false,
-        "applied": false,
-        "x_error_column": null,
-        "y_error_columns": {},
-        "warnings": []
-      },
-      "fitting": {
-        "requested": false,
-        "applied": false,
-        "models": [],
         "warnings": []
       },
       "fitting_annotation": {
-        "requested": false,
-        "applied": false,
-        "position": null,
-        "texts": [],
+        "requested": true,
+        "applied": true,
+        "position": "top_left",
+        "texts": [
+          {
+            "fit_name": "poly2_fit_y",
+            "text": "poly2_fit_y\ny = 0.971429*x^2 + 0.157143*x + 0.985714\nR^2 = 0.999928",
+            "x": 0.009000000000000008,
+            "y": 29.025
+          }
+        ],
         "warnings": []
       },
       "fitting_summary_csv": {
-        "requested": false,
-        "path": null,
-        "exists": false,
-        "rows_written": 0,
+        "requested": true,
+        "path": "reports\\fitting_summary_poly2.csv",
+        "exists": true,
+        "rows_written": 1,
+        "append": false,
         "warnings": []
       },
       "residuals": {
-        "csv_requested": false,
-        "csv_outputs": [],
-        "residual_plot_requested": false,
-        "residual_plot_outputs": [],
+        "csv_requested": true,
+        "csv_outputs": [
+          {
+            "fit_name": "poly2_fit_y",
+            "path": "reports\\residuals\\poly2_fit_poly2_fit_y_residuals.csv",
+            "exists": true,
+            "rows_written": 6,
+            "size_bytes": 324
+          }
+        ],
+        "residual_plot_requested": true,
+        "residual_plot_outputs": [
+          {
+            "fit_name": "poly2_fit_y",
+            "png": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.png",
+            "pdf": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.pdf",
+            "png_exists": true,
+            "pdf_exists": true
+          }
+        ],
         "warnings": []
+      },
+      "origin_session": {
+        "retry_on_com_error": true,
+        "max_retries": 1,
+        "kill_stale_origin_before_retry": true,
+        "retry_delay_seconds": 2.0,
+        "attempts": 1,
+        "retry_used": false,
+        "stale_origin_killed": false,
+        "session_errors": [],
+        "final_session_status": "ok"
       },
       "error": null
     }
@@ -267,18 +291,31 @@
     "jobs_errorbar_with_warnings": 0
   },
   "fitting_summary": {
-    "jobs_requesting_fitting": 0,
-    "jobs_fitting_applied": 0,
+    "jobs_requesting_fitting": 2,
+    "jobs_fitting_applied": 2,
     "jobs_fitting_with_warnings": 0,
-    "models_used": []
+    "models_used": [
+      "linear",
+      "polynomial"
+    ]
   },
   "fit_artifact_summary": {
-    "jobs_with_annotation_requested": 0,
-    "jobs_with_annotation_applied": 0,
-    "summary_csv_outputs": [],
-    "residual_csv_count": 0,
-    "residual_plot_count": 0,
+    "jobs_with_annotation_requested": 2,
+    "jobs_with_annotation_applied": 2,
+    "summary_csv_outputs": [
+      "reports\\fitting_summary_linear.csv",
+      "reports\\fitting_summary_poly2.csv"
+    ],
+    "residual_csv_count": 2,
+    "residual_plot_count": 4,
     "jobs_with_fit_artifact_warnings": 0
+  },
+  "origin_session_summary": {
+    "jobs_with_retry_used": 0,
+    "jobs_with_stale_origin_killed": 0,
+    "jobs_ok_after_retry": 0,
+    "jobs_session_failed": 0,
+    "total_session_errors": 0
   },
   "manual_intervention": {
     "policy": "GUI dialog auto-clicking is intentionally not implemented.",
