@@ -1,0 +1,2 @@
+# Codex writes canonical CSV / XLSX files here for origin-plot to consume.
+# See contracts/canonical_data_contract.md for the exact shape.

@@ -1,0 +1,84 @@
+{
+  "timestamp_utc": "2026-05-22T14:00:53Z",
+  "status": "PASS",
+  "examples": [
+    {
+      "config": "configs/examples/line_plot.yaml",
+      "exit_code": 0,
+      "status": "PASS",
+      "outputs_ok": true,
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_examples\\line_example.png",
+          "exists": true,
+          "size_bytes": 14601
+        },
+        "pdf": {
+          "path": "output\\origin_plot_examples\\line_example.pdf",
+          "exists": true,
+          "size_bytes": 9168
+        },
+        "opju": {
+          "path": "output\\origin_plot_examples\\line_example.opju",
+          "exists": true,
+          "size_bytes": 25650
+        }
+      },
+      "report_package": "reports\\report_package"
+    },
+    {
+      "config": "configs/examples/errorbar_plot.yaml",
+      "exit_code": 0,
+      "status": "PASS",
+      "outputs_ok": true,
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_examples\\errorbar_example.png",
+          "exists": true,
+          "size_bytes": 15691
+        },
+        "pdf": {
+          "path": "output\\origin_plot_examples\\errorbar_example.pdf",
+          "exists": true,
+          "size_bytes": 9940
+        },
+        "opju": {
+          "path": "output\\origin_plot_examples\\errorbar_example.opju",
+          "exists": true,
+          "size_bytes": 27044
+        }
+      },
+      "report_package": "reports\\report_package"
+    },
+    {
+      "config": "configs/examples/fitting_plot.yaml",
+      "exit_code": 0,
+      "status": "PASS",
+      "outputs_ok": true,
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_examples\\fitting_example.png",
+          "exists": true,
+          "size_bytes": 16406
+        },
+        "pdf": {
+          "path": "output\\origin_plot_examples\\fitting_example.pdf",
+          "exists": true,
+          "size_bytes": 14266
+        },
+        "opju": {
+          "path": "output\\origin_plot_examples\\fitting_example.opju",
+          "exists": true,
+          "size_bytes": 28207
+        }
+      },
+      "report_package": "reports\\report_package"
+    }
+  ],
+  "hygiene": {
+    "exit_code": 0,
+    "stdout_tail": "PASS: committed report path check ok"
+  },
+  "warnings": [],
+  "errors": []
+}

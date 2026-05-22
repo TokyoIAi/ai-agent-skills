@@ -1,0 +1,45 @@
+{
+  "timestamp_utc": "2026-05-22T14:01:10Z",
+  "status": "PASS",
+  "config_path": "configs\\examples\\fitting_plot.yaml",
+  "input_file": "data/examples/fitting_sample.csv",
+  "graph_type": "line_symbol",
+  "validation": "PASS",
+  "execution": {
+    "returncode": 0,
+    "report_path": "reports\\origin_plot_v0_2_report.json",
+    "report_status": "PASS"
+  },
+  "outputs": {
+    "png": {
+      "path": "output\\origin_plot_examples\\fitting_example.png",
+      "exists": true,
+      "size_bytes": 16406
+    },
+    "pdf": {
+      "path": "output\\origin_plot_examples\\fitting_example.pdf",
+      "exists": true,
+      "size_bytes": 14266
+    },
+    "opju": {
+      "path": "output\\origin_plot_examples\\fitting_example.opju",
+      "exists": true,
+      "size_bytes": 28207
+    }
+  },
+  "report_package": {
+    "package_dir": "reports\\report_package",
+    "figures": {
+      "png": "reports\\report_package\\figures\\fitting_example.png",
+      "pdf": "reports\\report_package\\figures\\fitting_example.pdf",
+      "opju": "reports\\report_package\\origin_projects\\fitting_example.opju"
+    },
+    "config_copies": [
+      "reports\\report_package\\configs\\fitting_plot.yaml"
+    ],
+    "figure_index": "reports\\report_package\\figure_index.md",
+    "run_report": "reports\\report_package\\run_report.json"
+  },
+  "warnings": [],
+  "errors": []
+}

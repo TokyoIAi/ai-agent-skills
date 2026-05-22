@@ -1,0 +1,7 @@
+batch_name: "core_examples_batch_v1_0"
+continue_on_error: true
+jobs:
+  - name: "line_example"
+    config: "configs/examples/line_plot.yaml"
+  - name: "errorbar_example"
+    config: "configs/examples/errorbar_plot.yaml"

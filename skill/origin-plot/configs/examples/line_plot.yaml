@@ -1,0 +1,20 @@
+input_file: "data/examples/line_sample.csv"
+input_format: "auto"
+sheet_name: null
+
+x_column: "x"
+y_columns:
+  - "y"
+
+graph_type: "line"
+graph_title: "Example line plot v1.0"
+x_title: "X"
+y_title: "Y"
+
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
+output_dir: "output/origin_plot_examples"
+output_basename: "line_example"
+
+show_origin: true

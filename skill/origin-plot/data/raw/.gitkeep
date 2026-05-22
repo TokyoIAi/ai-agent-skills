@@ -1,0 +1,5 @@
+# Place upstream / unmodified inputs here.
+# This directory is for ad-hoc raw files that Codex receives from users.
+# Codex cleans them and writes the canonical version into ../cleaned/.
+# This .gitkeep keeps the directory present in version control while the
+# actual contents stay flexible.

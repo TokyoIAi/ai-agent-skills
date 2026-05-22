@@ -1,8 +1,8 @@
 {
   "status": "PASS",
-  "timestamp_utc": "2026-05-22T06:38:23Z",
-  "config_path": "configs\\fitting\\linear_fit_config.yaml",
-  "input_file": "data\\fit_sample.csv",
+  "timestamp_utc": "2026-05-22T14:01:18Z",
+  "config_path": "configs\\examples\\fitting_plot.yaml",
+  "input_file": "data\\examples\\fitting_sample.csv",
   "detected_format": "csv",
   "row_count_raw": 6,
   "row_count_used": 6,
@@ -13,19 +13,19 @@
   "graph_type": "line_symbol",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_fitting\\linear_fit.png",
+      "path": "output\\origin_plot_examples\\fitting_example.png",
       "exists": true,
-      "size_bytes": 17585
+      "size_bytes": 16406
     },
     "pdf": {
-      "path": "output\\origin_plot_fitting\\linear_fit.pdf",
+      "path": "output\\origin_plot_examples\\fitting_example.pdf",
       "exists": true,
-      "size_bytes": 18425
+      "size_bytes": 14266
     },
     "opju": {
-      "path": "output\\origin_plot_fitting\\linear_fit.opju",
+      "path": "output\\origin_plot_examples\\fitting_example.opju",
       "exists": true,
-      "size_bytes": 28566
+      "size_bytes": 28207
     }
   },
   "style": {
@@ -81,48 +81,25 @@
     "warnings": []
   },
   "fitting_annotation": {
-    "requested": true,
-    "applied": true,
-    "position": "top_right",
-    "texts": [
-      {
-        "fit_name": "linear_fit_y",
-        "text": "linear_fit_y\ny = 1.98857*x + 1.09524\nR^2 = 0.997534",
-        "x": 4.9910000000000005,
-        "y": 11.64
-      }
-    ],
+    "requested": false,
+    "applied": false,
+    "position": null,
+    "texts": [],
     "warnings": []
   },
   "fitting_summary_csv": {
-    "requested": true,
-    "path": "reports\\fitting_summary_linear.csv",
-    "exists": true,
-    "rows_written": 1,
-    "append": false,
+    "requested": false,
+    "path": null,
+    "exists": false,
+    "rows_written": 0,
+    "append": true,
     "warnings": []
   },
   "residuals": {
-    "csv_requested": true,
-    "csv_outputs": [
-      {
-        "fit_name": "linear_fit_y",
-        "path": "reports\\residuals\\linear_fit_linear_fit_y_residuals.csv",
-        "exists": true,
-        "rows_written": 6,
-        "size_bytes": 322
-      }
-    ],
-    "residual_plot_requested": true,
-    "residual_plot_outputs": [
-      {
-        "fit_name": "linear_fit_y",
-        "png": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.png",
-        "pdf": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.pdf",
-        "png_exists": true,
-        "pdf_exists": true
-      }
-    ],
+    "csv_requested": false,
+    "csv_outputs": [],
+    "residual_plot_requested": false,
+    "residual_plot_outputs": [],
     "warnings": []
   },
   "origin_session": {
@@ -171,7 +148,7 @@
   "session_history": {
     "path": "reports\\session_history.json",
     "updated": true,
-    "entry_count_after_update": 5,
+    "entry_count_after_update": 24,
     "history_max_entries": 100,
     "truncated": false,
     "reset_before_run": false,
@@ -179,11 +156,11 @@
   },
   "session_health_snapshot": {
     "history_path": "reports\\session_history.json",
-    "entries_seen": 5,
+    "entries_seen": 24,
     "recent_window": 20,
     "degraded_ok_after_retry_threshold": 3,
     "degraded_failed_threshold": 1,
-    "recent_ok": 4,
+    "recent_ok": 19,
     "recent_ok_after_retry": 1,
     "recent_failed": 0,
     "recent_injection_triggered": 1,

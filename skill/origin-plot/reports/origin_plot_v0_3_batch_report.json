@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "timestamp_utc": "2026-05-22T06:38:50Z",
+  "timestamp_utc": "2026-05-22T13:45:48Z",
   "batch_name": "fitting_batch_v0_8_1",
   "job_count": 2,
   "passed_count": 2,
@@ -15,7 +15,7 @@
         "png": {
           "path": "output\\origin_plot_fitting\\linear_fit.png",
           "exists": true,
-          "size_bytes": 17585
+          "size_bytes": 18252
         },
         "pdf": {
           "path": "output\\origin_plot_fitting\\linear_fit.pdf",
@@ -172,7 +172,7 @@
         "png": {
           "path": "output\\origin_plot_fitting_poly2\\poly2_fit.png",
           "exists": true,
-          "size_bytes": 21007
+          "size_bytes": 22081
         },
         "pdf": {
           "path": "output\\origin_plot_fitting_poly2\\poly2_fit.pdf",
@@ -376,14 +376,14 @@
   },
   "session_history_summary": {
     "history_path": "reports\\session_history.json",
-    "entries_seen": 7,
+    "entries_seen": 11,
     "recent_window": 20,
     "degraded_ok_after_retry_threshold": 3,
     "degraded_failed_threshold": 1,
-    "recent_ok": 6,
-    "recent_ok_after_retry": 1,
+    "recent_ok": 9,
+    "recent_ok_after_retry": 2,
     "recent_failed": 0,
-    "recent_injection_triggered": 1,
+    "recent_injection_triggered": 2,
     "health_status": "ok"
   },
   "manual_intervention": {

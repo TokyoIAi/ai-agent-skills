@@ -6,18 +6,33 @@ A personal collection of reusable AI Agent Skills for Codex, Claude Code, and lo
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | skill/origin-plot | v0.8.7 Release Hygiene | Config-based, batch, directory-scan, style-profiled, error-bar-capable, fitting-capable, fit-artifact-aware, Origin-session-resilient, retry-test-verified, session-health-monitored, timestamp-tracked, operator-tunable, and pre-commit-guarded OriginPro plotting with CSV/XLSX/TSV/TXT input. |
+| origin-plot | skill/origin-plot | v1.0-core-refactor | Stable Origin / OriginPro plot execution backend for canonical data and YAML configs, designed to be driven by Codex data-wrangling workflows. |
 
 ## Repository layout
 
 - `skill/origin-plot/`
-- `skill/origin-plot/.agents/skills/origin-plot/`
+- `skill/origin-plot/core/`
+- `skill/origin-plot/workflows/`
+- `skill/origin-plot/contracts/`
 - `skill/origin-plot/configs/`
-- `skill/origin-plot/scripts/`
 - `skill/origin-plot/data/`
+- `skill/origin-plot/scripts/`
+- `skill/origin-plot/ops/`
+- `skill/origin-plot/archive/`
+- `skill/origin-plot/.agents/skills/origin-plot/`
 
 ## Design rule
 
 Each Skill is stored as an independent subproject under `skill/<skill-name>/`.
 
 Generated output files are ignored by Git and are not uploaded by default.
+
+`origin-plot` v1.0 follows a strict separation of concerns:
+
+- **Codex** is responsible for understanding messy inputs (complex Excel,
+  Markdown, screenshots, lab-notebook photos), cleaning the data, and
+  writing canonical CSV / YAML files.
+- **origin-plot** receives canonical data + YAML and reliably renders PNG /
+  PDF / OPJU through Origin / OriginPro.
+
+See `skill/origin-plot/contracts/` for the formal contracts.

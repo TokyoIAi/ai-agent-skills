@@ -5,6 +5,31 @@ description: Use this skill when the task involves generating scientific plots w
 
 # Origin Plot
 
+## v1.0 core surface (read first)
+
+origin-plot v1.0 is a stable Origin / OriginPro plot execution backend for
+canonical data and YAML configs. It is **not** a data understanding tool.
+
+- Daily entry points live in `workflows/`:
+  - `py workflows\run_plot.py --config configs\examples\line_plot.yaml`
+  - `py workflows\run_batch.py --batch-config configs\examples\batch.yaml`
+  - `py workflows\accept_core.py` for the minimal acceptance suite.
+- Codex (or any equivalent caller) must clean upstream data and write the
+  canonical CSV / XLSX before invoking the workflow. The contract lives at
+  `contracts/codex_data_wrangler_contract.md`.
+- Maintenance tooling (smoke tests, session health, hygiene scans, release
+  guards) lives under `ops/`. None of those are required for daily plotting.
+- The verified v0.8.7 implementation still ships in `scripts/`. `core/` and
+  `ops/` delegate to it; we have **not** rewritten the Origin control logic.
+- `output/` is generated and git-ignored. `reports/report_package/` is the
+  primary deliverable and must remain free of absolute local paths
+  (`H:\`, `C:\`, `E:\`, `/mnt/`).
+- v0.9 smart-input experiments are intentionally not part of v1.0; Codex
+  owns that responsibility.
+
+The remainder of this file is the v0.1 - v0.8.7 history; treat it as
+background documentation. The v1.0 contract above takes precedence.
+
 ## Purpose
 
 Use Windows Python and OriginLab's `originpro` package to generate verified scientific plots in installed Windows Origin/OriginPro from CSV or Excel data. Prefer direct API automation through Origin Automation Server / COM rather than any GUI interaction.

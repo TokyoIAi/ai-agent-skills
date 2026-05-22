@@ -1,0 +1,62 @@
+{
+  "timestamp_utc": "2026-05-22T13:57:26Z",
+  "status": "PASS",
+  "batch_config": "configs\\examples\\batch.yaml",
+  "batch_name": "core_examples_batch_v1_0",
+  "continue_on_error": true,
+  "job_count": 2,
+  "passed_count": 2,
+  "failed_count": 0,
+  "jobs": [
+    {
+      "name": "line_example",
+      "config": "configs\\examples\\line_plot.yaml",
+      "status": "PASS",
+      "exit_code": 0,
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_examples\\line_example.png",
+          "exists": true,
+          "size_bytes": 14601
+        },
+        "pdf": {
+          "path": "output\\origin_plot_examples\\line_example.pdf",
+          "exists": true,
+          "size_bytes": 9168
+        },
+        "opju": {
+          "path": "output\\origin_plot_examples\\line_example.opju",
+          "exists": true,
+          "size_bytes": 25650
+        }
+      },
+      "report_package": "reports\\report_package"
+    },
+    {
+      "name": "errorbar_example",
+      "config": "configs\\examples\\errorbar_plot.yaml",
+      "status": "PASS",
+      "exit_code": 0,
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_examples\\errorbar_example.png",
+          "exists": true,
+          "size_bytes": 15691
+        },
+        "pdf": {
+          "path": "output\\origin_plot_examples\\errorbar_example.pdf",
+          "exists": true,
+          "size_bytes": 9940
+        },
+        "opju": {
+          "path": "output\\origin_plot_examples\\errorbar_example.opju",
+          "exists": true,
+          "size_bytes": 27044
+        }
+      },
+      "report_package": "reports\\report_package"
+    }
+  ],
+  "warnings": [],
+  "errors": []
+}
