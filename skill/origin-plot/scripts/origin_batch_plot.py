@@ -103,6 +103,7 @@ def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> di
     status = report_status if report_status in {"PASS", "PASS with warnings"} else "FAIL"
     style = report.get("style") or {}
     errorbar = report.get("errorbar") or {}
+    fitting = report.get("fitting") or {}
     return {
         "name": name,
         "config": config,
@@ -112,6 +113,7 @@ def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> di
         "style": style,
         "style_warnings": style.get("style_warnings", []),
         "errorbar": errorbar,
+        "fitting": fitting,
         "error": None if status in {"PASS", "PASS with warnings"} else "; ".join(report.get("errors") or ["plot failed"]),
     }
 
@@ -245,6 +247,31 @@ def errorbar_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def fitting_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    requested = 0
+    applied = 0
+    with_warnings = 0
+    models_used: list[str] = []
+    for job in results:
+        fitting = job.get("fitting") or {}
+        if fitting.get("requested"):
+            requested += 1
+        if fitting.get("applied"):
+            applied += 1
+        if fitting.get("warnings"):
+            with_warnings += 1
+        for model in fitting.get("models") or []:
+            model_name = model.get("model")
+            if model_name and model_name not in models_used:
+                models_used.append(str(model_name))
+    return {
+        "jobs_requesting_fitting": requested,
+        "jobs_fitting_applied": applied,
+        "jobs_fitting_with_warnings": with_warnings,
+        "models_used": models_used,
+    }
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -310,6 +337,7 @@ def main() -> int:
         "retry_config": retry_config,
         "style_summary": style_summary(results),
         "errorbar_summary": errorbar_summary(results),
+        "fitting_summary": fitting_summary(results),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,

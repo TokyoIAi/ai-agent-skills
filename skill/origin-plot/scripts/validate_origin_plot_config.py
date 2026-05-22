@@ -10,6 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
+SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
 
 
 def fail(message: str) -> None:
@@ -114,6 +115,73 @@ def validate_errorbar_columns(config: dict[str, Any], df: Any, y_columns: list[s
     return normalized_y_errors, normalized_x_error, warnings
 
 
+def normalize_fit_models(config: dict[str, Any], df: Any, x_column: str, y_columns: list[str]) -> tuple[bool, list[dict[str, Any]], list[str]]:
+    warnings: list[str] = []
+    fitting = config.get("fitting") or {}
+    if not isinstance(fitting, dict):
+        fail("fitting must be a mapping.")
+    enabled = bool(fitting.get("enabled", False))
+    if not enabled:
+        return False, [], warnings
+
+    models = fitting.get("models")
+    if not isinstance(models, list) or not models:
+        fail("fitting.enabled=true requires a non-empty models list.")
+
+    seen_names: set[str] = set()
+    normalized: list[dict[str, Any]] = []
+    x_values = __import__("pandas").to_numeric(df[x_column], errors="coerce")
+    for item in models:
+        if not isinstance(item, dict):
+            fail("Each fitting model entry must be a mapping.")
+        name = str(item.get("name") or "")
+        if not name:
+            fail("Each fitting model must include name.")
+        if name in seen_names:
+            fail(f"Fitting model names must be unique: {name}")
+        seen_names.add(name)
+
+        y_column = str(item.get("y_column") or "")
+        if y_column not in y_columns:
+            fail(f"Fitting y_column must belong to y_columns: {y_column}")
+        model = str(item.get("model") or "").lower()
+        if model not in SUPPORTED_FIT_MODELS:
+            fail(f"Unsupported fitting model: {model}")
+        degree = 1
+        if model == "polynomial":
+            try:
+                degree = int(item.get("degree"))
+            except (TypeError, ValueError):
+                fail("Polynomial fitting requires integer degree.")
+            if degree < 2 or degree > 5:
+                fail("Polynomial degree must be an integer from 2 to 5.")
+
+        try:
+            points = int(item.get("output_curve_points", 100))
+        except (TypeError, ValueError):
+            fail("output_curve_points must be an integer.")
+        if points < 20 or points > 1000:
+            fail("output_curve_points must be between 20 and 1000.")
+
+        y_values = __import__("pandas").to_numeric(df[y_column], errors="coerce")
+        valid = __import__("pandas").DataFrame({"x": x_values, "y": y_values}).dropna()
+        if len(valid) <= degree + 1:
+            fail(f"Fitting model {name} needs more than degree + 1 valid points.")
+
+        normalized.append(
+            {
+                "name": name,
+                "y_column": y_column,
+                "model": model,
+                "degree": degree,
+                "output_curve_points": points,
+                "show_equation": bool(item.get("show_equation", True)),
+                "show_r_squared": bool(item.get("show_r_squared", True)),
+            }
+        )
+    return True, normalized, warnings
+
+
 def detect_format(input_path: Path, input_format: str | None) -> str:
     fmt = (input_format or "auto").lower()
     if fmt not in SUPPORTED_FORMATS:
@@ -193,6 +261,7 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
     if len(valid) < 2:
         fail("Selected x/y columns must contain at least 2 valid numeric rows.")
     y_error_columns, x_error_column, errorbar_warnings = validate_errorbar_columns(config, df, y_columns)
+    fitting_enabled, fitting_models, fitting_warnings = normalize_fit_models(config, df, x_column, y_columns)
 
     summary = {
         "input_file": str(config["input_file"]),
@@ -208,6 +277,9 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         "y_error_columns": y_error_columns,
         "x_error_column": x_error_column,
         "errorbar_validation_warnings": errorbar_warnings,
+        "fitting_enabled": fitting_enabled,
+        "fitting_models": fitting_models,
+        "fitting_validation_warnings": fitting_warnings,
         "output_dir": str(config["output_dir"]),
         "output_basename": str(config["output_basename"]),
     }

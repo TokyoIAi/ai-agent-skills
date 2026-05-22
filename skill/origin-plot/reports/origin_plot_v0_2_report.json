@@ -1,31 +1,30 @@
 {
   "status": "PASS",
-  "config_path": "configs\\errorbar\\errorbar_multi_config.yaml",
-  "input_file": "data\\errorbar_multi_sample.csv",
+  "config_path": "configs\\fitting\\poly2_fit_config.yaml",
+  "input_file": "data\\fit_poly_sample.csv",
   "detected_format": "csv",
   "row_count_raw": 6,
   "row_count_used": 6,
   "x_column": "x",
   "y_columns": [
-    "y1",
-    "y2"
+    "y"
   ],
-  "graph_type": "errorbar",
+  "graph_type": "line_symbol",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_errorbar_multi\\errorbar_multi.png",
+      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.png",
       "exists": true,
-      "size_bytes": 16622
+      "size_bytes": 16800
     },
     "pdf": {
-      "path": "output\\origin_plot_errorbar_multi\\errorbar_multi.pdf",
+      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.pdf",
       "exists": true,
-      "size_bytes": 8733
+      "size_bytes": 11919
     },
     "opju": {
-      "path": "output\\origin_plot_errorbar_multi\\errorbar_multi.opju",
+      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.opju",
       "exists": true,
-      "size_bytes": 27098
+      "size_bytes": 26980
     }
   },
   "style": {
@@ -40,8 +39,6 @@
     "applied_style_features": [
       "line.width",
       "line.symbol_size",
-      "line.width",
-      "line.symbol_size",
       "graph.title",
       "axis.x_title",
       "axis.y_title",
@@ -51,13 +48,36 @@
     "style_warnings": []
   },
   "errorbar": {
+    "requested": false,
+    "applied": false,
+    "x_error_column": null,
+    "y_error_columns": {},
+    "warnings": []
+  },
+  "fitting": {
     "requested": true,
     "applied": true,
-    "x_error_column": null,
-    "y_error_columns": {
-      "y1": "y1_err",
-      "y2": "y2_err"
-    },
+    "models": [
+      {
+        "name": "poly2_fit_y",
+        "y_column": "y",
+        "model": "polynomial",
+        "degree": 2,
+        "coefficients": [
+          0.9714285714285724,
+          0.15714285714285295,
+          0.985714285714294
+        ],
+        "equation": "y = 0.971429*x^2 + 0.157143*x + 0.985714",
+        "r_squared": 0.9999278603014738,
+        "residual_sum_of_squares": 0.03428571428571486,
+        "n_points": 6,
+        "curve_added_to_origin": true,
+        "warnings": [],
+        "fit_x_column": "poly2_fit_y_x",
+        "fit_y_column": "poly2_fit_y_y"
+      }
+    ],
     "warnings": []
   },
   "manual_intervention": {

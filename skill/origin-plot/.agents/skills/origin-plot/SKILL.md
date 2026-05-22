@@ -191,6 +191,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.4: directory scan MVP using `scripts\generate_batch_configs_from_dir.py` to create single-plot configs and a generated batch config from data files.
 - v0.5: style and export profile MVP using reusable YAML profiles under `configs\styles\` and `configs\exports\`.
 - v0.6: error bar MVP using `graph_type: errorbar`, `y_error_columns`, and optional `x_error_column`.
+- v0.7: curve fitting MVP using Python-side linear and polynomial fitting, with fit curves added to Origin as generated worksheet columns.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -370,3 +371,71 @@ Batch reports include `errorbar_summary` with counts for requesting jobs, applie
 - `errorbar.applied` is true when Origin accepts the error-bar columns.
 - If Origin rejects error bars but exports ordinary plot files, mark `PASS with warnings`.
 - Reports use relative paths and do not claim GUI automation.
+
+## v0.7 Curve Fitting Workflow
+
+Use v0.7 when the user wants basic fit curves and fit metrics. Validate first, then plot:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\fitting\linear_fit_config.yaml
+py scripts\origin_plot_from_config.py --config configs\fitting\linear_fit_config.yaml
+```
+
+Fitting is computed in Python with `numpy.polyfit`. Origin receives the original data and generated fit curve columns, then renders and exports the graph. Do not require Origin's built-in fitting API in v0.7.
+
+## Fitting YAML Schema
+
+```yaml
+fitting:
+  enabled: true
+  models:
+    - name: "linear_fit_y"
+      y_column: "y"
+      model: "linear"
+      degree: 2
+      output_curve_points: 100
+      show_equation: true
+      show_r_squared: true
+```
+
+`degree` is required for polynomial models and ignored for linear models.
+
+## Supported Fit Models
+
+- `linear`: uses `numpy.polyfit(x, y, 1)`.
+- `polynomial`: uses `numpy.polyfit(x, y, degree)` with degree 2 through 5.
+
+Unsupported models must produce warnings or validation failures; never claim unsupported fitting succeeded.
+
+## Fitting Report Contract
+
+Single-plot reports include:
+
+```json
+"fitting": {
+  "requested": true,
+  "applied": true,
+  "models": [
+    {
+      "name": "...",
+      "coefficients": [],
+      "equation": "...",
+      "r_squared": 0.0,
+      "residual_sum_of_squares": 0.0,
+      "curve_added_to_origin": true
+    }
+  ],
+  "warnings": []
+}
+```
+
+Batch reports include `fitting_summary` with counts for requesting jobs, applied jobs, jobs with warnings, and models used.
+
+## v0.7 Acceptance Criteria
+
+- Linear and polynomial fitting configs validate without calling Origin.
+- Fit coefficients, equation, R squared, residual sum of squares, and point count are reported.
+- Fit curve columns are added to the Origin worksheet.
+- Fit curves are overlaid on the Origin graph when supported.
+- Requested PNG/PDF/OPJU outputs exist.
+- If fit curve overlay fails but exports exist, mark `PASS with warnings` and report the failure.

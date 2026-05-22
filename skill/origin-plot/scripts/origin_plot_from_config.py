@@ -13,6 +13,7 @@ REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
 SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
+SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
 MANUAL_INTERVENTION = {
     "user_reported_manual_ok": True,
     "current_rerun_popup_observed_by_user": False,
@@ -169,6 +170,58 @@ def normalize_errorbar_config(config: dict[str, Any], y_columns: list[str]) -> t
     return normalized_y_errors, str(x_error_column) if x_error_column not in (None, "") else None, warnings
 
 
+def normalize_fit_config(config: dict[str, Any], y_columns: list[str]) -> tuple[bool, list[dict[str, Any]], list[str]]:
+    warnings: list[str] = []
+    fitting = config.get("fitting") or {}
+    if not isinstance(fitting, dict):
+        raise ValueError("fitting must be a mapping.")
+    enabled = bool(fitting.get("enabled", False))
+    if not enabled:
+        return False, [], warnings
+    models = fitting.get("models")
+    if not isinstance(models, list) or not models:
+        raise ValueError("fitting.enabled=true requires a non-empty models list.")
+
+    seen_names: set[str] = set()
+    normalized: list[dict[str, Any]] = []
+    for item in models:
+        if not isinstance(item, dict):
+            raise ValueError("Each fitting model entry must be a mapping.")
+        name = str(item.get("name") or "")
+        if not name:
+            raise ValueError("Each fitting model must include name.")
+        if name in seen_names:
+            raise ValueError(f"Fitting model names must be unique: {name}")
+        seen_names.add(name)
+        y_column = str(item.get("y_column") or "")
+        if y_column not in y_columns:
+            raise ValueError(f"Fitting y_column must belong to y_columns: {y_column}")
+        model = str(item.get("model") or "").lower()
+        if model not in SUPPORTED_FIT_MODELS:
+            warnings.append(f"Unsupported fitting model requested: {model}")
+            continue
+        degree = 1
+        if model == "polynomial":
+            degree = int(item.get("degree"))
+            if degree < 2 or degree > 5:
+                raise ValueError("Polynomial degree must be an integer from 2 to 5.")
+        points = int(item.get("output_curve_points", 100))
+        if points < 20 or points > 1000:
+            raise ValueError("output_curve_points must be between 20 and 1000.")
+        normalized.append(
+            {
+                "name": name,
+                "y_column": y_column,
+                "model": model,
+                "degree": degree,
+                "output_curve_points": points,
+                "show_equation": bool(item.get("show_equation", True)),
+                "show_r_squared": bool(item.get("show_r_squared", True)),
+            }
+        )
+    return enabled, normalized, warnings
+
+
 def output_status(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {"path": None, "exists": False, "size_bytes": 0}
@@ -193,6 +246,7 @@ def build_report(
     outputs: dict[str, Path | None],
     style: dict[str, Any],
     errorbar: dict[str, Any],
+    fitting: dict[str, Any],
     warnings: list[str],
     errors: list[str],
 ) -> dict[str, Any]:
@@ -209,6 +263,7 @@ def build_report(
         "outputs": {name: output_status(path) for name, path in outputs.items()},
         "style": style,
         "errorbar": errorbar,
+        "fitting": fitting,
         "manual_intervention": MANUAL_INTERVENTION,
         "warnings": warnings,
         "errors": errors,
@@ -309,6 +364,84 @@ def column_index_map(plot_df: Any) -> dict[str, int]:
     return {str(column): index for index, column in enumerate(plot_df.columns)}
 
 
+def equation_string(coefficients: list[float], model: str, degree: int) -> str:
+    if model == "linear":
+        return f"y = {coefficients[0]:.6g}*x + {coefficients[1]:.6g}"
+    terms: list[str] = []
+    for index, coefficient in enumerate(coefficients):
+        power = degree - index
+        if power == 0:
+            terms.append(f"{coefficient:.6g}")
+        elif power == 1:
+            terms.append(f"{coefficient:.6g}*x")
+        else:
+            terms.append(f"{coefficient:.6g}*x^{power}")
+    return "y = " + " + ".join(terms)
+
+
+def compute_fit_models(plot_df: Any, x_column: str, fit_models: list[dict[str, Any]], fitting_warnings: list[str]) -> tuple[Any, list[dict[str, Any]]]:
+    import numpy as np
+    import pandas as pd
+
+    result_df = plot_df.copy()
+    results: list[dict[str, Any]] = []
+    for model_cfg in fit_models:
+        name = model_cfg["name"]
+        y_column = model_cfg["y_column"]
+        model = model_cfg["model"]
+        degree = int(model_cfg["degree"])
+        points = int(model_cfg["output_curve_points"])
+        model_result = {
+            "name": name,
+            "y_column": y_column,
+            "model": model,
+            "degree": degree,
+            "coefficients": [],
+            "equation": None,
+            "r_squared": None,
+            "residual_sum_of_squares": None,
+            "n_points": 0,
+            "curve_added_to_origin": False,
+            "warnings": [],
+        }
+        try:
+            valid = pd.DataFrame({"x": plot_df[x_column], "y": plot_df[y_column]}).dropna()
+            if len(valid) <= degree + 1:
+                raise ValueError("not enough valid data points for requested fit")
+            x = valid["x"].to_numpy(dtype=float)
+            y = valid["y"].to_numpy(dtype=float)
+            coefficients = np.polyfit(x, y, degree)
+            y_pred = np.polyval(coefficients, x)
+            residuals = y - y_pred
+            rss = float(np.sum(residuals**2))
+            tss = float(np.sum((y - np.mean(y)) ** 2))
+            r_squared = 1.0 if tss == 0 else 1.0 - rss / tss
+            x_fit = np.linspace(float(np.min(x)), float(np.max(x)), points)
+            y_fit = np.polyval(coefficients, x_fit)
+            x_fit_col = f"{name}_x"
+            y_fit_col = f"{name}_y"
+            fit_df = pd.DataFrame({x_fit_col: x_fit, y_fit_col: y_fit})
+            result_df = pd.concat([result_df.reset_index(drop=True), fit_df], axis=1)
+            coeff_list = [float(value) for value in coefficients]
+            model_result.update(
+                {
+                    "coefficients": coeff_list,
+                    "equation": equation_string(coeff_list, model, degree),
+                    "r_squared": float(r_squared),
+                    "residual_sum_of_squares": rss,
+                    "n_points": int(len(valid)),
+                    "fit_x_column": x_fit_col,
+                    "fit_y_column": y_fit_col,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 - record and continue with other models
+            warning = f"Fit computation failed for {name}: {type(exc).__name__}: {exc}"
+            model_result["warnings"].append(warning)
+            fitting_warnings.append(warning)
+        results.append(model_result)
+    return result_df, results
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate Origin plot from v0.2 YAML configuration.")
     parser.add_argument("--config", default="configs/origin_plot_config.yaml")
@@ -340,6 +473,12 @@ def main() -> int:
         "y_error_columns": {},
         "warnings": [],
     }
+    fitting_info: dict[str, Any] = {
+        "requested": False,
+        "applied": False,
+        "models": [],
+        "warnings": [],
+    }
     op = None
 
     try:
@@ -358,6 +497,16 @@ def main() -> int:
             x_error_column,
             errorbar_warnings,
         ) = prepare_data(effective_config)
+        row_count_raw = int(len(raw_df))
+        row_count_used = int(len(plot_df))
+        fitting_enabled, fit_models, fitting_warnings = normalize_fit_config(effective_config, y_columns)
+        plot_df, fit_results = compute_fit_models(plot_df, x_column, fit_models, fitting_warnings)
+        fitting_info = {
+            "requested": fitting_enabled,
+            "applied": False,
+            "models": fit_results,
+            "warnings": fitting_warnings,
+        }
         errorbar_info = {
             "requested": graph_type == "errorbar",
             "applied": False,
@@ -365,8 +514,6 @@ def main() -> int:
             "y_error_columns": y_error_columns,
             "warnings": errorbar_warnings,
         }
-        row_count_raw = int(len(raw_df))
-        row_count_used = int(len(plot_df))
         if dropped:
             warning = f"Dropped {dropped} row(s) with NaN after numeric conversion."
             warnings.append(warning)
@@ -437,6 +584,42 @@ def main() -> int:
                 pass
             apply_plot_style(plot, settings, style_info)
 
+        fit_curve_added_count = 0
+        for model_result in fitting_info["models"]:
+            fit_x_column = model_result.get("fit_x_column")
+            fit_y_column = model_result.get("fit_y_column")
+            if not fit_x_column or not fit_y_column:
+                continue
+            try:
+                fit_plot = layer.add_plot(
+                    wks,
+                    coly=col_indices[str(fit_y_column)],
+                    colx=col_indices[str(fit_x_column)],
+                    type="l",
+                )
+                if fit_plot is None:
+                    raise RuntimeError("Origin returned no plot object")
+                try:
+                    fit_plot.name = str(model_result["name"])
+                except Exception:
+                    pass
+                model_result["curve_added_to_origin"] = True
+                fit_curve_added_count += 1
+            except Exception as exc:  # noqa: BLE001 - report without failing core plot
+                warning = f"Could not add fit curve {model_result['name']} to Origin graph: {type(exc).__name__}: {exc}"
+                model_result["warnings"].append(warning)
+                fitting_info["warnings"].append(warning)
+
+        if fitting_info["requested"]:
+            requested_fit_count = len(fitting_info["models"])
+            fitting_info["applied"] = requested_fit_count > 0 and fit_curve_added_count == requested_fit_count
+            if requested_fit_count == 0:
+                fitting_info["warnings"].append("fitting.enabled=true but no supported fit models were available.")
+            elif not fitting_info["applied"]:
+                fitting_info["warnings"].append(
+                    f"Only added {fit_curve_added_count} of {requested_fit_count} requested fit curve(s) to Origin."
+                )
+
         if graph_type == "errorbar":
             expected_errorbars = len(y_error_columns)
             errorbar_info["applied"] = expected_errorbars > 0 and errorbar_applied_count == expected_errorbars
@@ -495,6 +678,8 @@ def main() -> int:
         status = "PASS" if not missing else "PARTIAL PASS"
         if status == "PASS" and errorbar_info["requested"] and not errorbar_info["applied"]:
             status = "PASS with warnings"
+        if status == "PASS" and fitting_info["requested"] and not fitting_info["applied"]:
+            status = "PASS with warnings"
         if missing:
             errors.append(f"Missing requested outputs: {missing}")
             print("FAIL: missing requested Origin outputs:")
@@ -516,6 +701,7 @@ def main() -> int:
             outputs,
             style_info,
             errorbar_info,
+            fitting_info,
             warnings,
             errors,
         )
@@ -538,6 +724,7 @@ def main() -> int:
             outputs,
             style_info,
             errorbar_info,
+            fitting_info,
             warnings,
             errors,
         )

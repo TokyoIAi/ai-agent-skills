@@ -1,0 +1,31 @@
+input_file: "data/fit_sample.csv"
+input_format: "auto"
+sheet_name: null
+
+x_column: "x"
+y_columns:
+  - "y"
+
+graph_type: "line_symbol"
+
+fitting:
+  enabled: true
+  models:
+    - name: "linear_fit_y"
+      y_column: "y"
+      model: "linear"
+      output_curve_points: 100
+      show_equation: true
+      show_r_squared: true
+
+graph_title: "Linear Fit Plot v0.7"
+x_title: "X"
+y_title: "Y"
+
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
+output_dir: "output/origin_plot_fitting"
+output_basename: "linear_fit"
+
+show_origin: true

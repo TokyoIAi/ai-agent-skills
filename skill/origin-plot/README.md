@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.6.
+Current version: v0.7.
 
 ## Supported formats
 
@@ -181,6 +181,49 @@ py scripts\origin_plot_from_config.py --config configs\errorbar\errorbar_multi_c
 
 Error bar application is best-effort through `originpro`. If Origin rejects the error-bar call, the script records `errorbar.warnings`, falls back to ordinary plotting when possible, and still exports PNG/PDF/OPJU. In that case the result is `PASS with warnings`, not a false claim that error bars were applied.
 
+## v0.7 Curve Fitting MVP
+
+Curve fitting is performed in Python, then the generated fit curve data is sent to Origin as extra worksheet columns. Origin handles graph rendering, PNG/PDF export, and OPJU saving. v0.7 does not depend on Origin's built-in fitting API.
+
+YAML schema:
+
+```yaml
+fitting:
+  enabled: true
+  models:
+    - name: "linear_fit_y"
+      y_column: "y"
+      model: "linear"
+      output_curve_points: 100
+      show_equation: true
+      show_r_squared: true
+```
+
+Polynomial fitting adds a degree:
+
+```yaml
+fitting:
+  enabled: true
+  models:
+    - name: "poly2_fit_y"
+      y_column: "y"
+      model: "polynomial"
+      degree: 2
+      output_curve_points: 100
+```
+
+Run examples:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\fitting\linear_fit_config.yaml
+py scripts\origin_plot_from_config.py --config configs\fitting\linear_fit_config.yaml
+
+py scripts\validate_origin_plot_config.py --config configs\fitting\poly2_fit_config.yaml
+py scripts\origin_plot_from_config.py --config configs\fitting\poly2_fit_config.yaml
+```
+
+Reports include coefficients, an equation string, R squared, residual sum of squares, point count, and whether the fit curve was added to the Origin graph. If PNG/PDF/OPJU export succeeds but a fit curve cannot be added, the result is `PASS with warnings`.
+
 ## YAML fields
 
 - `input_file`: input data path, usually relative to this subproject.
@@ -199,6 +242,7 @@ Error bar application is best-effort through `originpro`. If Origin rejects the 
 - `export_profile`: optional path to a reusable export YAML.
 - `y_error_columns`: optional mapping from Y columns to Y error columns.
 - `x_error_column`: optional X error column.
+- `fitting`: optional Python-side linear or polynomial fitting configuration.
 
 ## Outputs
 

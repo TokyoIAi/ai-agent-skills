@@ -58,6 +58,12 @@
         "y_error_columns": {},
         "warnings": []
       },
+      "fitting": {
+        "requested": false,
+        "applied": false,
+        "models": [],
+        "warnings": []
+      },
       "error": null
     },
     {
@@ -78,7 +84,7 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_b\\sample_b.opju",
           "exists": true,
-          "size_bytes": 26243
+          "size_bytes": 26258
         }
       },
       "warnings": [],
@@ -110,6 +116,12 @@
         "applied": false,
         "x_error_column": null,
         "y_error_columns": {},
+        "warnings": []
+      },
+      "fitting": {
+        "requested": false,
+        "applied": false,
+        "models": [],
         "warnings": []
       },
       "error": null
@@ -132,7 +144,7 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_c\\sample_c.opju",
           "exists": true,
-          "size_bytes": 26138
+          "size_bytes": 27597
         }
       },
       "warnings": [],
@@ -166,6 +178,12 @@
         "y_error_columns": {},
         "warnings": []
       },
+      "fitting": {
+        "requested": false,
+        "applied": false,
+        "models": [],
+        "warnings": []
+      },
       "error": null
     }
   ],
@@ -184,6 +202,12 @@
     "jobs_requesting_errorbar": 0,
     "jobs_errorbar_applied": 0,
     "jobs_errorbar_with_warnings": 0
+  },
+  "fitting_summary": {
+    "jobs_requesting_fitting": 0,
+    "jobs_fitting_applied": 0,
+    "jobs_fitting_with_warnings": 0,
+    "models_used": []
   },
   "manual_intervention": {
     "policy": "GUI dialog auto-clicking is intentionally not implemented.",
