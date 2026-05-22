@@ -159,10 +159,21 @@ def collect_artifacts(reports_data: list[tuple[Path, dict[str, Any] | None]]) ->
     return summary
 
 
-def discover_reports_from_dir(reports_dir: Path) -> list[Path]:
+def discover_reports_from_dir(reports_dir: Path, output_path: Path) -> list[Path]:
     if not reports_dir.exists() or not reports_dir.is_dir():
         return []
-    return sorted(p for p in reports_dir.glob("*.json") if p.is_file())
+    output_resolved = output_path.resolve()
+    discovered: list[Path] = []
+    for entry in sorted(reports_dir.glob("*.json")):
+        if not entry.is_file():
+            continue
+        # Skip the artifact summary itself to avoid self-referential pollution.
+        if entry.resolve() == output_resolved:
+            continue
+        if entry.name == "origin_plot_v0_8_artifact_report.json":
+            continue
+        discovered.append(entry)
+    return discovered
 
 
 def main() -> int:
@@ -187,20 +198,29 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    paths: list[Path] = []
-    for value in args.reports:
-        paths.append(resolve_project_path(value))
-    if args.reports_dir:
-        for entry in discover_reports_from_dir(resolve_project_path(args.reports_dir)):
-            if entry not in paths:
-                paths.append(entry)
-
     if Path(args.output).is_absolute():
         print(f"FAIL: --output must be a relative path: {args.output}")
         return 1
-
     output_path = resolve_project_path(args.output)
-    # Avoid scanning the artifact report we are about to write.
+
+    paths: list[Path] = []
+    for value in args.reports:
+        paths.append(resolve_project_path(value))
+    reports_dir_value: str | None = None
+    if args.reports_dir:
+        reports_dir_value = args.reports_dir
+        for entry in discover_reports_from_dir(resolve_project_path(args.reports_dir), output_path):
+            if entry not in paths:
+                paths.append(entry)
+
+    if reports_dir_value and not args.reports:
+        input_mode = "reports_dir"
+    elif reports_dir_value and args.reports:
+        input_mode = "mixed"
+    else:
+        input_mode = "reports"
+
+    # Avoid scanning the artifact report we are about to write even if explicitly listed.
     paths = [p for p in paths if p.resolve() != output_path.resolve()]
 
     reports_data: list[tuple[Path, dict[str, Any] | None]] = []
@@ -211,11 +231,14 @@ def main() -> int:
             reports_data.append((path, read_report(path)))
 
     summary = collect_artifacts(reports_data)
+    summary["input_mode"] = input_mode
+    summary["reports_dir"] = reports_dir_value
     summary["scanned_paths"] = [rel(path) for path, _ in reports_data]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    print(f"input_mode: {input_mode}")
     print(f"reports_scanned: {summary['reports_scanned']}")
     print(f"fit_models_seen: {summary['fit_models_seen']}")
     print(f"annotations_requested: {summary['annotations_requested']}")

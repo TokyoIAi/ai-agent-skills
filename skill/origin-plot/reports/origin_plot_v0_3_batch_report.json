@@ -131,9 +131,21 @@
         "max_retries": 1,
         "kill_stale_origin_before_retry": true,
         "retry_delay_seconds": 2.0,
+        "inject_session_error_once": false,
+        "session_profile": null,
+        "session_profile_settings": {},
+        "cli_session_overrides": {},
+        "effective_settings": {
+          "retry_on_com_error": true,
+          "max_retries": 1,
+          "kill_stale_origin_before_retry": true,
+          "retry_delay_seconds": 2.0,
+          "inject_session_error_once": false
+        },
         "attempts": 1,
         "retry_used": false,
         "stale_origin_killed": false,
+        "injection_triggered": false,
         "session_errors": [],
         "final_session_status": "ok"
       },
@@ -265,9 +277,21 @@
         "max_retries": 1,
         "kill_stale_origin_before_retry": true,
         "retry_delay_seconds": 2.0,
+        "inject_session_error_once": false,
+        "session_profile": null,
+        "session_profile_settings": {},
+        "cli_session_overrides": {},
+        "effective_settings": {
+          "retry_on_com_error": true,
+          "max_retries": 1,
+          "kill_stale_origin_before_retry": true,
+          "retry_delay_seconds": 2.0,
+          "inject_session_error_once": false
+        },
         "attempts": 1,
         "retry_used": false,
         "stale_origin_killed": false,
+        "injection_triggered": false,
         "session_errors": [],
         "final_session_status": "ok"
       },

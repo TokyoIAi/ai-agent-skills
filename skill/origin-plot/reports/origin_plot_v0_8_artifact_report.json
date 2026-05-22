@@ -1,13 +1,13 @@
 {
   "status": "PASS",
-  "reports_scanned": 2,
+  "reports_scanned": 3,
   "reports_unreadable": [],
   "fit_models_seen": 3,
   "annotations_requested": 3,
   "annotations_applied": 3,
   "summary_csv_outputs": [
     {
-      "path": "reports\\fitting_summary_poly2.csv",
+      "path": "reports\\fitting_summary_linear_retry_injected.csv",
       "exists": true,
       "rows_written": 1,
       "append": false
@@ -17,12 +17,18 @@
       "exists": true,
       "rows_written": 1,
       "append": false
+    },
+    {
+      "path": "reports\\fitting_summary_poly2.csv",
+      "exists": true,
+      "rows_written": 1,
+      "append": false
     }
   ],
   "residual_csv_outputs": [
     {
-      "fit_name": "poly2_fit_y",
-      "path": "reports\\residuals\\poly2_fit_poly2_fit_y_residuals.csv",
+      "fit_name": "linear_fit_y",
+      "path": "reports\\residuals\\linear_fit_retry_injected_linear_fit_y_residuals.csv",
       "exists": true,
       "rows_written": 6
     },
@@ -31,14 +37,20 @@
       "path": "reports\\residuals\\linear_fit_linear_fit_y_residuals.csv",
       "exists": true,
       "rows_written": 6
+    },
+    {
+      "fit_name": "poly2_fit_y",
+      "path": "reports\\residuals\\poly2_fit_poly2_fit_y_residuals.csv",
+      "exists": true,
+      "rows_written": 6
     }
   ],
   "residual_plot_outputs": [
     {
-      "fit_name": "poly2_fit_y",
-      "png": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.png",
+      "fit_name": "linear_fit_y",
+      "png": "output\\origin_plot_residuals\\linear_fit_retry_injected_linear_fit_y_residual.png",
       "png_exists": true,
-      "pdf": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.pdf",
+      "pdf": "output\\origin_plot_residuals\\linear_fit_retry_injected_linear_fit_y_residual.pdf",
       "pdf_exists": true
     },
     {
@@ -47,12 +59,22 @@
       "png_exists": true,
       "pdf": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.pdf",
       "pdf_exists": true
+    },
+    {
+      "fit_name": "poly2_fit_y",
+      "png": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.png",
+      "png_exists": true,
+      "pdf": "output\\origin_plot_residuals\\poly2_fit_poly2_fit_y_residual.pdf",
+      "pdf_exists": true
     }
   ],
   "warnings": [],
   "missing_artifacts": [],
+  "input_mode": "reports_dir",
+  "reports_dir": "reports",
   "scanned_paths": [
     "reports\\origin_plot_v0_2_report.json",
-    "reports\\origin_plot_v0_3_batch_report.json"
+    "reports\\origin_plot_v0_3_batch_report.json",
+    "reports\\origin_plot_v0_4_scan_report.json"
   ]
 }

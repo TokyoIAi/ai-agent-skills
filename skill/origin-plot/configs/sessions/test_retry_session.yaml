@@ -1,0 +1,6 @@
+session_profile_name: "test_retry_session"
+retry_on_com_error: true
+max_retries: 1
+kill_stale_origin_before_retry: false
+retry_delay_seconds: 1
+inject_session_error_once: true

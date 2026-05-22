@@ -1,0 +1,56 @@
+input_file: "data/fit_sample.csv"
+input_format: "auto"
+sheet_name: null
+
+x_column: "x"
+y_columns:
+  - "y"
+
+graph_type: "line_symbol"
+
+fitting:
+  enabled: true
+  models:
+    - name: "linear_fit_y"
+      y_column: "y"
+      model: "linear"
+      output_curve_points: 100
+      show_equation: true
+      show_r_squared: true
+  annotation:
+    enabled: true
+    include_equation: true
+    include_r_squared: true
+    include_model_name: true
+    position: "top_right"
+  summary_csv:
+    enabled: true
+    path: "reports/fitting_summary_linear_retry_injected.csv"
+    append: false
+  residuals:
+    export_csv: true
+    generate_residual_plot: true
+    output_dir: "output/origin_plot_residuals"
+
+# session_profile demonstrates how a reusable test profile drives retry. Per-config
+# fields below override anything the profile supplies.
+session_profile: "configs/sessions/test_retry_session.yaml"
+
+origin_session:
+  retry_on_com_error: true
+  max_retries: 1
+  kill_stale_origin_before_retry: false
+  retry_delay_seconds: 1
+  inject_session_error_once: true
+
+graph_title: "Linear Fit Retry-Injected Plot v0.8.2"
+x_title: "X"
+y_title: "Y"
+
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
+output_dir: "output/origin_plot_fitting_retry_injected"
+output_basename: "linear_fit_retry_injected"
+
+show_origin: true

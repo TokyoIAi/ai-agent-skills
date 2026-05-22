@@ -10,6 +10,18 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+# Local utility module
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from origin_session_utils import (  # noqa: E402
+    InjectedSessionError,
+    is_session_error,
+    kill_stale_origin_processes,
+    load_session_profile,
+    make_injected_session_error,
+    merge_session_settings,
+    session_defaults,
+)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
@@ -18,17 +30,6 @@ SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
 SUPPORTED_ANNOTATION_POSITIONS = {"top_right", "top_left", "bottom_right", "bottom_left"}
-SESSION_ERROR_INDICATORS = (
-    "\u65e0\u6548\u6307\u9488",  # 无效指针
-    "ApplicationBase_LT_execute",
-    "OriginExt",
-    "originpro",
-    "COMError",
-    "com_error",
-    "set_show",
-    "_OriginExt",
-)
-ORIGIN_PROCESS_NAMES = ("Origin64.exe", "Origin.exe", "OriginPro.exe")
 MANUAL_INTERVENTION = {
     "user_reported_manual_ok": True,
     "current_rerun_popup_observed_by_user": False,
@@ -237,72 +238,28 @@ def normalize_fit_config(config: dict[str, Any], y_columns: list[str]) -> tuple[
     return enabled, normalized, warnings
 
 
-def normalize_session_config(config: dict[str, Any]) -> dict[str, Any]:
-    session_raw = config.get("origin_session") or {}
-    if session_raw and not isinstance(session_raw, dict):
+def resolve_session_config(
+    config: dict[str, Any],
+    cli_overrides: dict[str, Any] | None,
+) -> tuple[str | None, dict[str, Any], dict[str, Any]]:
+    """Load optional session_profile, merge with explicit + CLI overrides.
+
+    Returns (profile_relpath_or_none, profile_settings_dict, effective_settings_dict).
+    """
+    profile_path: str | None = None
+    profile_settings: dict[str, Any] = {}
+    profile_value = config.get("session_profile")
+    if profile_value:
+        if not isinstance(profile_value, str):
+            raise ValueError("session_profile must be a string path.")
+        profile_path, profile_settings = load_session_profile(profile_value, PROJECT_ROOT)
+
+    explicit = config.get("origin_session") or {}
+    if explicit and not isinstance(explicit, dict):
         raise ValueError("origin_session must be a mapping.")
 
-    retry_on_com_error = session_raw.get("retry_on_com_error", True)
-    if not isinstance(retry_on_com_error, bool):
-        raise ValueError("origin_session.retry_on_com_error must be a boolean.")
-    max_retries_raw = session_raw.get("max_retries", 1)
-    try:
-        max_retries = int(max_retries_raw)
-    except (TypeError, ValueError):
-        raise ValueError("origin_session.max_retries must be an integer.") from None
-    if max_retries < 0 or max_retries > 5:
-        raise ValueError("origin_session.max_retries must be between 0 and 5.")
-    kill_stale = session_raw.get("kill_stale_origin_before_retry", True)
-    if not isinstance(kill_stale, bool):
-        raise ValueError("origin_session.kill_stale_origin_before_retry must be a boolean.")
-    delay_raw = session_raw.get("retry_delay_seconds", 2)
-    try:
-        retry_delay_seconds = float(delay_raw)
-    except (TypeError, ValueError):
-        raise ValueError("origin_session.retry_delay_seconds must be a number.") from None
-    if retry_delay_seconds < 0 or retry_delay_seconds > 60:
-        raise ValueError("origin_session.retry_delay_seconds must be between 0 and 60.")
-    return {
-        "retry_on_com_error": retry_on_com_error,
-        "max_retries": int(max_retries),
-        "kill_stale_origin_before_retry": kill_stale,
-        "retry_delay_seconds": float(retry_delay_seconds),
-    }
-
-
-def is_session_error(exc: BaseException) -> bool:
-    text = f"{type(exc).__module__}.{type(exc).__name__}: {exc}"
-    return any(indicator.lower() in text.lower() for indicator in SESSION_ERROR_INDICATORS)
-
-
-def kill_stale_origin_processes() -> tuple[bool, list[str]]:
-    notes: list[str] = []
-    killed_any = False
-    for proc_name in ORIGIN_PROCESS_NAMES:
-        try:
-            completed = subprocess.run(
-                ["taskkill", "/F", "/IM", proc_name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            stdout = (completed.stdout or "").strip()
-            stderr = (completed.stderr or "").strip()
-            if completed.returncode == 0:
-                killed_any = True
-                if stdout:
-                    notes.append(f"taskkill {proc_name}: {stdout}")
-            elif stdout or stderr:
-                # Treat 'not found' as expected/quiet.
-                lower_combo = (stdout + " " + stderr).lower()
-                if "not found" not in lower_combo and "\u672a\u627e\u5230" not in (stdout + stderr):
-                    notes.append(f"taskkill {proc_name} rc={completed.returncode}: {stdout or stderr}")
-        except FileNotFoundError:
-            notes.append("taskkill.exe is not available; skipped Origin process kill")
-            break
-        except Exception as exc:  # noqa: BLE001 - never raise from cleanup
-            notes.append(f"taskkill {proc_name} failed: {type(exc).__name__}: {exc}")
-    return killed_any, notes
+    effective = merge_session_settings(profile_settings, explicit, cli_overrides)
+    return profile_path, profile_settings, effective
 
 
 def normalize_fit_artifact_config(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -835,7 +792,39 @@ def append_summary_csv_row(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate Origin plot from v0.2 YAML configuration.")
     parser.add_argument("--config", default="configs/origin_plot_config.yaml")
+    parser.add_argument(
+        "--session-max-retries",
+        type=int,
+        default=None,
+        help="CLI override for origin_session.max_retries (0-5).",
+    )
+    parser.add_argument(
+        "--session-retry-delay-seconds",
+        type=float,
+        default=None,
+        help="CLI override for origin_session.retry_delay_seconds (0-60).",
+    )
+    parser.add_argument(
+        "--no-kill-stale-origin-before-retry",
+        action="store_true",
+        help="CLI override that disables stale Origin process kill on retry.",
+    )
+    parser.add_argument(
+        "--inject-session-error-once",
+        action="store_true",
+        help="Test-only flag: inject a session error on the first attempt to exercise retry.",
+    )
     args = parser.parse_args()
+
+    cli_session_overrides: dict[str, Any] = {}
+    if args.session_max_retries is not None:
+        cli_session_overrides["max_retries"] = int(args.session_max_retries)
+    if args.session_retry_delay_seconds is not None:
+        cli_session_overrides["retry_delay_seconds"] = float(args.session_retry_delay_seconds)
+    if args.no_kill_stale_origin_before_retry:
+        cli_session_overrides["kill_stale_origin_before_retry"] = False
+    if args.inject_session_error_once:
+        cli_session_overrides["inject_session_error_once"] = True
 
     config_path = resolve_project_path(args.config)
     warnings: list[str] = []
@@ -896,9 +885,15 @@ def main() -> int:
         "max_retries": 1,
         "kill_stale_origin_before_retry": True,
         "retry_delay_seconds": 2.0,
+        "inject_session_error_once": False,
+        "session_profile": None,
+        "session_profile_settings": {},
+        "cli_session_overrides": {},
+        "effective_settings": {},
         "attempts": 0,
         "retry_used": False,
         "stale_origin_killed": False,
+        "injection_triggered": False,
         "session_errors": [],
         "final_session_status": "not_started",
     }
@@ -970,15 +965,23 @@ def main() -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
         outputs = requested_outputs(effective_config, output_dir, basename)
 
-        session_cfg = normalize_session_config(effective_config)
+        session_profile_path, session_profile_settings, session_cfg = resolve_session_config(
+            effective_config, cli_session_overrides
+        )
         origin_session_info.update(
             {
                 "retry_on_com_error": session_cfg["retry_on_com_error"],
                 "max_retries": session_cfg["max_retries"],
                 "kill_stale_origin_before_retry": session_cfg["kill_stale_origin_before_retry"],
                 "retry_delay_seconds": session_cfg["retry_delay_seconds"],
+                "inject_session_error_once": session_cfg["inject_session_error_once"],
+                "session_profile": session_profile_path,
+                "session_profile_settings": session_profile_settings,
+                "cli_session_overrides": dict(cli_session_overrides or {}),
+                "effective_settings": dict(session_cfg),
             }
         )
+        injection_remaining = bool(session_cfg.get("inject_session_error_once"))
 
         # Snapshot state that the Origin pipeline mutates so retries start clean.
         baseline_warnings = list(warnings)
@@ -1036,6 +1039,11 @@ def main() -> int:
 
             try:
                 import originpro as op  # type: ignore
+
+                if injection_remaining and attempt_index == 1:
+                    injection_remaining = False
+                    origin_session_info["injection_triggered"] = True
+                    raise make_injected_session_error()
 
                 try:
                     op.set_show(bool(effective_config.get("show_origin", True)))

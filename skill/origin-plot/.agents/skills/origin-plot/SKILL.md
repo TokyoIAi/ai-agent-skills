@@ -194,6 +194,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.7: curve fitting MVP using Python-side linear and polynomial fitting, with fit curves added to Origin as generated worksheet columns.
 - v0.8: fit annotation, fitting summary CSV, and residual CSV plus optional residual plot artifacts on top of v0.7.
 - v0.8.1: Origin COM session stability with retry-on-com-error, fit summary CSV append policy, fitting batch sample, and cross-report artifact summarizer.
+- v0.8.2: deterministic retry-path injection, reusable session profiles, CLI session overrides, reports-dir artifact summarization, and a session retry logic smoke test.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -610,3 +611,70 @@ The aggregator only inspects paths the source reports recorded. It does not glob
 - `scripts/summarize_fit_artifacts.py` writes `reports/origin_plot_v0_8_artifact_report.json` with relative paths and existence checks.
 - All reports remain free of absolute paths (`H:\\`, `C:\\`, `E:\\`).
 - `output/` stays git-ignored; `reports/*.csv`, `reports/residuals/*.csv`, and `reports/origin_plot_v0_8_artifact_report.json` are committable.
+
+## v0.8.2 Retry Path Testing
+
+`origin_session.inject_session_error_once` is a test-only switch. When enabled, the script raises `InjectedSessionError` ("`Injected test OriginExt ApplicationBase_LT_execute 无效指针`") on the first Origin attempt. The session classifier recognises the message, the retry path executes, and the second attempt completes normally. The injection consumes itself so retries beyond the first are not re-injected.
+
+Use the prepared config `configs/fitting/linear_fit_retry_injected_config.yaml` to exercise the path:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\fitting\linear_fit_retry_injected_config.yaml
+py scripts\origin_plot_from_config.py --config configs\fitting\linear_fit_retry_injected_config.yaml
+```
+
+Expected report fields: `status="PASS with session_retry"`, `origin_session.attempts=2`, `origin_session.retry_used=true`, `origin_session.injection_triggered=true`, `origin_session.final_session_status="ok_after_retry"`. PNG/PDF/OPJU outputs and the dedicated summary CSV must exist on disk.
+
+## Session Profile Workflow
+
+`session_profile: "configs/sessions/<profile>.yaml"` lifts retry settings into reusable YAML files alongside style and export profiles. Two ship by default:
+
+- `configs/sessions/default_session.yaml` — production-safe.
+- `configs/sessions/test_retry_session.yaml` — test injection profile.
+
+Profiles must use relative paths and may include a presentational `session_profile_name` field. Only the documented session keys are merged into runtime settings.
+
+Merge priority is `defaults < profile < origin_session block < CLI overrides`. The single-plot report carries the resolved `session_profile` path, raw profile settings, CLI overrides, and `effective_settings` so retry decisions stay traceable.
+
+## CLI Session Override Rules
+
+`origin_plot_from_config.py` accepts:
+
+- `--session-max-retries INT` (0–5)
+- `--session-retry-delay-seconds FLOAT` (0–60)
+- `--no-kill-stale-origin-before-retry` (forces `kill_stale_origin_before_retry=false`)
+- `--inject-session-error-once` (test-only injection)
+
+Omitted flags do not change resolved settings. CLI overrides are merged last, after profile and explicit `origin_session` fields.
+
+## Reports-dir Artifact Summary
+
+```powershell
+py scripts\summarize_fit_artifacts.py --reports-dir reports
+```
+
+The summarizer walks the top-level `*.json` files in the directory, skips `origin_plot_v0_8_artifact_report.json` to avoid self-reference, and records `input_mode` plus `reports_dir` in the output. `--reports` and `--reports-dir` may be combined; the report stamps `input_mode="mixed"` when both are supplied. All paths emitted remain relative to the project root.
+
+## Session Retry Logic Smoke Test
+
+`scripts/test_session_retry_logic.py` runs without Origin and verifies:
+
+- `is_session_error` recognises Origin/COM markers and the injected exception.
+- `is_session_error` rejects benign errors such as `FileNotFoundError` or `ValueError`.
+- `merge_session_settings` honours the priority chain `defaults < profile < explicit < CLI`.
+- Defaults are returned when no inputs are provided.
+- Invalid values for `max_retries`, `retry_delay_seconds`, and boolean fields are rejected with a clear `ValueError`.
+
+The test prints `PASS: session retry logic smoke tests ok` on success and exits non-zero if any assertion fails.
+
+## v0.8.2 Acceptance Criteria
+
+- `origin_session_utils.py` exposes pure-Python helpers used by the main script and smoke test.
+- `inject_session_error_once` triggers retry on the first Origin attempt and succeeds on the second.
+- Retry-injected report has `attempts=2`, `retry_used=true`, `injection_triggered=true`, `final_session_status="ok_after_retry"`.
+- Retry-injected outputs (PNG/PDF/OPJU, summary CSV, residual CSV, residual plot PNG/PDF) all exist on disk.
+- `session_profile` is loaded by both the validator and the runner; the resolved profile path is reflected in reports.
+- CLI overrides reach `origin_session.cli_session_overrides` and the merged `effective_settings`.
+- `summarize_fit_artifacts.py --reports-dir` populates `input_mode="reports_dir"` and `reports_dir` in the artifact report.
+- `test_session_retry_logic.py` passes without Origin.
+- Reports remain free of absolute paths and `output/` stays git-ignored.

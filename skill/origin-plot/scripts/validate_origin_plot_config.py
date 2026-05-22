@@ -5,6 +5,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Local utility module
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from origin_session_utils import (  # noqa: E402
+    load_session_profile,
+    merge_session_settings,
+)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
@@ -251,36 +258,32 @@ def normalize_fit_artifacts(config: dict[str, Any]) -> tuple[dict[str, Any], dic
     return annotation_summary, summary_csv_summary, residuals_summary, warnings
 
 
-def normalize_session_summary(config: dict[str, Any]) -> dict[str, Any]:
-    session_raw = config.get("origin_session") or {}
-    if session_raw and not isinstance(session_raw, dict):
+def normalize_session_summary(config: dict[str, Any]) -> tuple[str | None, dict[str, Any], dict[str, Any]]:
+    profile_path: str | None = None
+    profile_data: dict[str, Any] = {}
+    profile_value = config.get("session_profile")
+    if profile_value:
+        if not isinstance(profile_value, str):
+            fail("session_profile must be a string path.")
+        try:
+            profile_path, profile_data = load_session_profile(profile_value, PROJECT_ROOT)
+        except (ValueError, FileNotFoundError, RuntimeError) as exc:
+            fail(str(exc))
+
+    explicit = config.get("origin_session") or {}
+    if explicit and not isinstance(explicit, dict):
         fail("origin_session must be a mapping.")
-    retry_on_com_error = session_raw.get("retry_on_com_error", True)
-    if not isinstance(retry_on_com_error, bool):
-        fail("origin_session.retry_on_com_error must be a boolean.")
-    max_retries = session_raw.get("max_retries", 1)
+
     try:
-        max_retries_int = int(max_retries)
-    except (TypeError, ValueError):
-        fail("origin_session.max_retries must be an integer.")
-    if max_retries_int < 0 or max_retries_int > 5:
-        fail("origin_session.max_retries must be between 0 and 5.")
-    kill_stale = session_raw.get("kill_stale_origin_before_retry", True)
-    if not isinstance(kill_stale, bool):
-        fail("origin_session.kill_stale_origin_before_retry must be a boolean.")
-    delay = session_raw.get("retry_delay_seconds", 2)
-    try:
-        delay_float = float(delay)
-    except (TypeError, ValueError):
-        fail("origin_session.retry_delay_seconds must be a number.")
-    if delay_float < 0 or delay_float > 60:
-        fail("origin_session.retry_delay_seconds must be between 0 and 60.")
-    return {
-        "retry_on_com_error": bool(retry_on_com_error),
-        "max_retries": int(max_retries_int),
-        "kill_stale_origin_before_retry": bool(kill_stale),
-        "retry_delay_seconds": float(delay_float),
+        merged = merge_session_settings(profile_data, explicit, None)
+    except ValueError as exc:
+        fail(str(exc))
+
+    profile_summary: dict[str, Any] = {
+        "session_profile": profile_path,
+        "session_profile_settings": dict(profile_data),
     }
+    return profile_path, profile_summary, merged
 
 
 def detect_format(input_path: Path, input_format: str | None) -> str:
@@ -364,7 +367,7 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
     y_error_columns, x_error_column, errorbar_warnings = validate_errorbar_columns(config, df, y_columns)
     fitting_enabled, fitting_models, fitting_warnings = normalize_fit_models(config, df, x_column, y_columns)
     annotation_summary, summary_csv_summary, residuals_summary, fit_artifact_warnings = normalize_fit_artifacts(config)
-    session_summary = normalize_session_summary(config)
+    session_profile_path, session_profile_summary, effective_session = normalize_session_summary(config)
 
     summary = {
         "input_file": str(config["input_file"]),
@@ -387,7 +390,13 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         "fitting_summary_csv": summary_csv_summary,
         "fitting_residuals": residuals_summary,
         "fit_artifact_validation_warnings": fit_artifact_warnings,
-        "origin_session": session_summary,
+        "session_profile": session_profile_path,
+        "origin_session": {
+            key: value
+            for key, value in (config.get("origin_session") or {}).items()
+            if isinstance(key, str)
+        },
+        "effective_origin_session": effective_session,
         "output_dir": str(config["output_dir"]),
         "output_basename": str(config["output_basename"]),
     }

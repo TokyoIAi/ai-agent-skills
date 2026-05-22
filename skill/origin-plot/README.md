@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.1.
+Current version: v0.8.2.
 
 ## Supported formats
 
@@ -423,6 +423,88 @@ The summary includes `summary_csv_outputs`, `residual_csv_outputs`, `residual_pl
 3. `PASS with warnings` for best-effort artifact issues (annotation, summary CSV, residuals, errorbar/fit overlay).
 4. `PASS with session_retry` when retry was used to recover the Origin session.
 5. `PASS` otherwise.
+
+## v0.8.2 Retry Path Test and Session Profiles
+
+v0.8.2 verifies the retry path with a deterministic test injection, lifts session settings into reusable profiles, and exposes session knobs on the CLI. No new fit models, layouts, or templates are introduced.
+
+### `inject_session_error_once` (test-only)
+
+```yaml
+origin_session:
+  inject_session_error_once: true
+```
+
+When `inject_session_error_once=true`, the script raises `InjectedSessionError` on the very first Origin pipeline attempt with the message `Injected test OriginExt ApplicationBase_LT_execute 无效指针`. The session classifier recognizes the message, retry kicks in, and the second attempt runs normally. The injection consumes itself, so a follow-up retry will not re-raise.
+
+This is for verification of the retry path and must never be enabled in normal acceptance configs. The default is always `false`.
+
+### Session profiles
+
+```yaml
+session_profile: "configs/sessions/default_session.yaml"
+```
+
+Session profiles live under `configs/sessions/` and contain the same fields as `origin_session`. Two profiles ship by default:
+
+- `configs/sessions/default_session.yaml` — production-safe defaults (retries enabled, kill stale Origin enabled, no injection).
+- `configs/sessions/test_retry_session.yaml` — test profile with `inject_session_error_once=true`.
+
+Merge priority, lowest to highest:
+
+1. Built-in defaults
+2. `session_profile` settings
+3. `origin_session` block in the plot config
+4. CLI overrides
+
+The plot report records `session_profile`, `session_profile_settings`, `cli_session_overrides`, and `effective_settings` so retry decisions are fully traceable.
+
+### CLI session overrides
+
+```powershell
+py scripts\origin_plot_from_config.py --config <path> ^
+    --session-max-retries 2 ^
+    --session-retry-delay-seconds 1 ^
+    --no-kill-stale-origin-before-retry ^
+    --inject-session-error-once
+```
+
+Any flag omitted leaves the YAML/profile value untouched. `--inject-session-error-once` is the only CLI form for the test injection and inherits the same test-only constraint as the YAML field.
+
+### Reports-dir artifact summarization
+
+```powershell
+py scripts\summarize_fit_artifacts.py --reports-dir reports
+```
+
+`--reports-dir` walks the directory's top-level `*.json` files, skips the artifact summary itself to avoid self-reference, and writes the same `reports/origin_plot_v0_8_artifact_report.json`. The output records `input_mode` (`reports`, `reports_dir`, or `mixed`) and `reports_dir` so consumers can tell how the summary was assembled.
+
+### Session retry logic smoke test
+
+```powershell
+py scripts\test_session_retry_logic.py
+```
+
+This runs without Origin and verifies:
+
+- Session error classifier accepts known Origin/COM messages and the injected error.
+- Classifier rejects benign exceptions (`FileNotFoundError`, `ValueError`, `KeyError`, `TypeError`).
+- `merge_session_settings` honors the profile → explicit → CLI priority chain.
+- Defaults survive an empty merge.
+- Out-of-range `max_retries`, `retry_delay_seconds`, and wrong-type fields are rejected.
+
+A successful run prints `PASS: session retry logic smoke tests ok`.
+
+### Retry-injected fitting config
+
+`configs/fitting/linear_fit_retry_injected_config.yaml` exercises the retry path end-to-end:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\fitting\linear_fit_retry_injected_config.yaml
+py scripts\origin_plot_from_config.py --config configs\fitting\linear_fit_retry_injected_config.yaml
+```
+
+Expected report: `status="PASS with session_retry"`, `attempts=2`, `retry_used=true`, `injection_triggered=true`, `final_session_status="ok_after_retry"`. PNG/PDF/OPJU outputs land under `output/origin_plot_fitting_retry_injected/`. The summary CSV is `reports/fitting_summary_linear_retry_injected.csv` so it does not collide with the regular linear baseline.
 
 ## YAML fields
 
