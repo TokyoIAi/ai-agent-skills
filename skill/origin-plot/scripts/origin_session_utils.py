@@ -97,6 +97,96 @@ def coerce_health_policy(source: Any, context: str) -> dict[str, Any]:
     return coerced
 
 
+def cli_health_overrides(
+    recent_window: Any | None = None,
+    degraded_ok_after_retry_threshold: Any | None = None,
+    degraded_failed_threshold: Any | None = None,
+) -> dict[str, int]:
+    """Build a validated CLI health override dict (only set fields included)."""
+    payload: dict[str, Any] = {}
+    if recent_window is not None:
+        payload["recent_window"] = recent_window
+    if degraded_ok_after_retry_threshold is not None:
+        payload["degraded_ok_after_retry_threshold"] = degraded_ok_after_retry_threshold
+    if degraded_failed_threshold is not None:
+        payload["degraded_failed_threshold"] = degraded_failed_threshold
+    return coerce_health_policy(payload, "cli.health") if payload else {}
+
+
+def compute_health_snapshot(
+    history_path: Path,
+    rel_history_path: str,
+    policy: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Read session_history.json (if present) and compute a health snapshot.
+
+    ``rel_history_path`` is the project-relative path string emitted in the
+    snapshot (callers compute it via their own ``rel`` helper).
+    """
+    import json as _json
+
+    effective_policy: dict[str, int] = dict(health_defaults())
+    if policy:
+        for key in effective_policy:
+            if key in policy:
+                try:
+                    effective_policy[key] = int(policy[key])
+                except (TypeError, ValueError):
+                    pass
+
+    snapshot: dict[str, Any] = {
+        "history_path": rel_history_path,
+        "entries_seen": 0,
+        "recent_window": effective_policy["recent_window"],
+        "degraded_ok_after_retry_threshold": effective_policy[
+            "degraded_ok_after_retry_threshold"
+        ],
+        "degraded_failed_threshold": effective_policy["degraded_failed_threshold"],
+        "recent_ok": 0,
+        "recent_ok_after_retry": 0,
+        "recent_failed": 0,
+        "recent_injection_triggered": 0,
+        "health_status": "unknown",
+    }
+
+    if not history_path.exists():
+        return snapshot
+    try:
+        raw = history_path.read_text(encoding="utf-8")
+        entries = _json.loads(raw)
+    except (OSError, _json.JSONDecodeError):
+        return snapshot
+    if not isinstance(entries, list):
+        return snapshot
+
+    snapshot["entries_seen"] = len(entries)
+    window = effective_policy["recent_window"]
+    recent = entries[-int(window):] if window > 0 else []
+    for entry in recent:
+        if not isinstance(entry, dict):
+            continue
+        fss = str(entry.get("final_session_status") or "")
+        if fss == "ok":
+            snapshot["recent_ok"] += 1
+        elif fss == "ok_after_retry":
+            snapshot["recent_ok_after_retry"] += 1
+        elif fss == "failed":
+            snapshot["recent_failed"] += 1
+        if entry.get("injection_triggered"):
+            snapshot["recent_injection_triggered"] += 1
+
+    if snapshot["recent_failed"] >= effective_policy["degraded_failed_threshold"]:
+        snapshot["health_status"] = "degraded"
+    elif (
+        snapshot["recent_ok_after_retry"]
+        >= effective_policy["degraded_ok_after_retry_threshold"]
+    ):
+        snapshot["health_status"] = "degraded"
+    else:
+        snapshot["health_status"] = "ok"
+    return snapshot
+
+
 def _coerce_session_dict(source: dict[str, Any], context: str) -> dict[str, Any]:
     if not isinstance(source, dict):
         raise ValueError(f"{context} must be a mapping.")

@@ -198,6 +198,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.8.3: CLI retry injection smoke test, batch session_test_summary, artifact injection filter, session_history.json, and aggregate smoke test runner.
 - v0.8.4: bounded session history retention, batch session_history_summary with health_status, artifact summary --since filter, and offline-only smoke runner mode.
 - v0.8.5: report-level timestamp_utc, session-history reset CLI/script, configurable session-health policy, artifact summary missing-timestamp filter, and pre-commit smoke runner scripts.
+- v0.8.6: health policy CLI override, single-plot session_health_snapshot, artifact health_status_counts rollup, and repository-level CONTRIBUTING.md.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -797,3 +798,41 @@ Validator rejects out-of-range or wrong-type values up front. The batch report's
 - `pre_commit_smoke.ps1` (and `pre_commit_smoke.sh`) exit non-zero on smoke-test failure.
 - All offline smoke tests pass: `test_session_retry_logic`, `test_session_health_logic`.
 - Reports remain free of absolute paths.
+
+## Health CLI Override Rules (v0.8.6)
+
+`origin_plot_from_config.py` accepts:
+
+- `--health-recent-window INT` (1–10000)
+- `--health-degraded-ok-after-retry-threshold INT` (0–10000)
+- `--health-degraded-failed-threshold INT` (0–10000)
+
+CLI overrides are merged after `session_profile.health` and `origin_session.health`. Threshold = 0 is permitted and produces a maximally sensitive degraded check. The single-plot report records `health_policy_overrides` with `null` for fields not provided. The merged result lands in `effective_settings.health`.
+
+## Single Plot Health Snapshot Contract (v0.8.6)
+
+Every single-plot report carries `session_health_snapshot` after the new history entry is appended. Fields: `history_path`, `entries_seen`, `recent_window`, `degraded_ok_after_retry_threshold`, `degraded_failed_threshold`, `recent_ok`, `recent_ok_after_retry`, `recent_failed`, `recent_injection_triggered`, `health_status`. `health_status` is `ok`, `degraded`, or `unknown` (history missing or unreadable). The snapshot uses the same merged policy as the batch summary.
+
+## Artifact Health Rollup Contract (v0.8.6)
+
+`summarize_fit_artifacts.py` now emits:
+
+- `health_status_counts`: `{"ok": 0, "degraded": 0, "unknown": 0}` aggregated across reports.
+- `reports_with_health_status`: count of reports that carried either `session_history_summary.health_status` or `session_health_snapshot.health_status`.
+- `reports_without_health_status`: count of reports that lacked both.
+
+Health status is sourced batch-first (`session_history_summary`), then single-plot (`session_health_snapshot`).
+
+## Contributor Workflow (v0.8.6)
+
+`CONTRIBUTING.md` (repository root) documents the canonical workflow: project scope, branch rule, Skill layout, safety rules, pre-commit smoke (`run_smoke_tests.py --skip-origin`), pre-tag acceptance routine, smoke-test registration, and `vX.Y`/`vX.Y.Z` versioning convention.
+
+## v0.8.6 Acceptance Criteria
+
+- Smoke tests pass for `test_session_retry_logic`, `test_session_health_logic` (with new CLI override coverage), and `test_cli_retry_injection`.
+- Single-plot report includes `session_health_snapshot` with a non-empty `health_status` (`ok`, `degraded`, or `unknown`).
+- Single-plot report records `origin_session.health_policy_overrides`; non-null entries appear when the user passes the matching CLI flag.
+- Validator and runtime reject out-of-range or wrong-type CLI health values.
+- Artifact summary contains `health_status_counts`, `reports_with_health_status`, `reports_without_health_status`.
+- Repository root contains `CONTRIBUTING.md` covering scope, safety rules, smoke runs, acceptance routine, smoke-test registration, and versioning.
+- Reports remain free of absolute paths and `output/` stays git-ignored.

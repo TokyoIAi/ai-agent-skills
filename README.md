@@ -6,7 +6,7 @@ A personal collection of reusable AI Agent Skills for Codex, Claude Code, and lo
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | skill/origin-plot | v0.8.5 Timestamp + Health Policy | Config-based, batch, directory-scan, style-profiled, error-bar-capable, fitting-capable, fit-artifact-aware, Origin-session-resilient, retry-test-verified, session-health-monitored, and timestamp-tracked OriginPro plotting with CSV/XLSX/TSV/TXT input. |
+| origin-plot | skill/origin-plot | v0.8.6 Operator Health UX | Config-based, batch, directory-scan, style-profiled, error-bar-capable, fitting-capable, fit-artifact-aware, Origin-session-resilient, retry-test-verified, session-health-monitored, timestamp-tracked, and operator-tunable OriginPro plotting with CSV/XLSX/TSV/TXT input. |
 
 ## Repository layout
 

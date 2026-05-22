@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "timestamp_utc": "2026-05-22T06:09:19Z",
+  "timestamp_utc": "2026-05-22T06:23:27Z",
   "config_path": "configs\\fitting\\linear_fit_config.yaml",
   "input_file": "data\\fit_sample.csv",
   "detected_format": "csv",
@@ -134,7 +134,18 @@
     "history_max_entries": 100,
     "session_profile": null,
     "session_profile_settings": {},
-    "cli_session_overrides": {},
+    "cli_session_overrides": {
+      "health": {
+        "recent_window": 5,
+        "degraded_ok_after_retry_threshold": 2,
+        "degraded_failed_threshold": 1
+      }
+    },
+    "health_policy_overrides": {
+      "recent_window": 5,
+      "degraded_ok_after_retry_threshold": 2,
+      "degraded_failed_threshold": 1
+    },
     "effective_settings": {
       "retry_on_com_error": true,
       "max_retries": 1,
@@ -143,8 +154,8 @@
       "inject_session_error_once": false,
       "history_max_entries": 100,
       "health": {
-        "recent_window": 20,
-        "degraded_ok_after_retry_threshold": 3,
+        "recent_window": 5,
+        "degraded_ok_after_retry_threshold": 2,
         "degraded_failed_threshold": 1
       }
     },
@@ -166,10 +177,22 @@
   "session_history": {
     "path": "reports\\session_history.json",
     "updated": true,
-    "entry_count_after_update": 1,
+    "entry_count_after_update": 2,
     "history_max_entries": 100,
     "truncated": false,
     "reset_before_run": false,
     "warnings": []
+  },
+  "session_health_snapshot": {
+    "history_path": "reports\\session_history.json",
+    "entries_seen": 2,
+    "recent_window": 5,
+    "degraded_ok_after_retry_threshold": 2,
+    "degraded_failed_threshold": 1,
+    "recent_ok": 2,
+    "recent_ok_after_retry": 0,
+    "recent_failed": 0,
+    "recent_injection_triggered": 0,
+    "health_status": "ok"
   }
 }

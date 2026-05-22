@@ -49,9 +49,16 @@
       "pdf_exists": true
     }
   ],
+  "health_status_counts": {
+    "ok": 2,
+    "degraded": 0,
+    "unknown": 0
+  },
+  "reports_with_health_status": 2,
+  "reports_without_health_status": 1,
   "warnings": [],
   "missing_artifacts": [],
-  "timestamp_utc": "2026-05-22T06:11:07Z",
+  "timestamp_utc": "2026-05-22T06:23:42Z",
   "input_mode": "reports_dir",
   "reports_dir": "reports",
   "injection_filter": "exclude_injection",

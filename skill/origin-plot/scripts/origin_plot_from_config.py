@@ -14,6 +14,8 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from origin_session_utils import (  # noqa: E402
     InjectedSessionError,
+    cli_health_overrides,
+    compute_health_snapshot,
     is_session_error,
     kill_stale_origin_processes,
     load_session_profile,
@@ -901,6 +903,24 @@ def main() -> int:
         action="store_true",
         help="Reset reports/session_history.json before this run (backs up to .bak.json).",
     )
+    parser.add_argument(
+        "--health-recent-window",
+        type=int,
+        default=None,
+        help="CLI override for origin_session.health.recent_window (1-10000).",
+    )
+    parser.add_argument(
+        "--health-degraded-ok-after-retry-threshold",
+        type=int,
+        default=None,
+        help="CLI override for origin_session.health.degraded_ok_after_retry_threshold (0-10000).",
+    )
+    parser.add_argument(
+        "--health-degraded-failed-threshold",
+        type=int,
+        default=None,
+        help="CLI override for origin_session.health.degraded_failed_threshold (0-10000).",
+    )
     args = parser.parse_args()
 
     cli_session_overrides: dict[str, Any] = {}
@@ -912,6 +932,19 @@ def main() -> int:
         cli_session_overrides["kill_stale_origin_before_retry"] = False
     if args.inject_session_error_once:
         cli_session_overrides["inject_session_error_once"] = True
+
+    health_policy_overrides_raw: dict[str, int | None] = {
+        "recent_window": args.health_recent_window,
+        "degraded_ok_after_retry_threshold": args.health_degraded_ok_after_retry_threshold,
+        "degraded_failed_threshold": args.health_degraded_failed_threshold,
+    }
+    health_overrides_clean = cli_health_overrides(
+        recent_window=args.health_recent_window,
+        degraded_ok_after_retry_threshold=args.health_degraded_ok_after_retry_threshold,
+        degraded_failed_threshold=args.health_degraded_failed_threshold,
+    )
+    if health_overrides_clean:
+        cli_session_overrides["health"] = health_overrides_clean
 
     reset_history_requested = bool(args.reset_session_history)
     if reset_history_requested:
@@ -993,6 +1026,11 @@ def main() -> int:
         "session_profile": None,
         "session_profile_settings": {},
         "cli_session_overrides": {},
+        "health_policy_overrides": {
+            "recent_window": None,
+            "degraded_ok_after_retry_threshold": None,
+            "degraded_failed_threshold": None,
+        },
         "effective_settings": {},
         "attempts": 0,
         "retry_used": False,
@@ -1083,6 +1121,10 @@ def main() -> int:
                 "session_profile": session_profile_path,
                 "session_profile_settings": session_profile_settings,
                 "cli_session_overrides": dict(cli_session_overrides or {}),
+                "health_policy_overrides": {
+                    key: (None if value is None else int(value))
+                    for key, value in health_policy_overrides_raw.items()
+                },
                 "effective_settings": dict(session_cfg),
             }
         )
@@ -1501,6 +1543,11 @@ def main() -> int:
         )
         save_report(report)
         report["session_history"] = update_session_history(report, reset_before_run=reset_history_requested)
+        report["session_health_snapshot"] = compute_health_snapshot(
+            SESSION_HISTORY_PATH,
+            rel(SESSION_HISTORY_PATH),
+            (origin_session_info.get("effective_settings") or {}).get("health"),
+        )
         save_report(report)
         return 0 if status in {"PASS", "PASS with warnings", "PASS with session_retry"} else 1
 
@@ -1530,6 +1577,11 @@ def main() -> int:
         )
         save_report(report)
         report["session_history"] = update_session_history(report, reset_before_run=reset_history_requested)
+        report["session_health_snapshot"] = compute_health_snapshot(
+            SESSION_HISTORY_PATH,
+            rel(SESSION_HISTORY_PATH),
+            (origin_session_info.get("effective_settings") or {}).get("health"),
+        )
         save_report(report)
         return 1
     finally:

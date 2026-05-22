@@ -71,6 +71,9 @@ def collect_artifacts(reports_data: list[tuple[Path, dict[str, Any] | None]]) ->
         "summary_csv_outputs": [],
         "residual_csv_outputs": [],
         "residual_plot_outputs": [],
+        "health_status_counts": {"ok": 0, "degraded": 0, "unknown": 0},
+        "reports_with_health_status": 0,
+        "reports_without_health_status": 0,
         "warnings": [],
         "missing_artifacts": [],
     }
@@ -87,6 +90,24 @@ def collect_artifacts(reports_data: list[tuple[Path, dict[str, Any] | None]]) ->
             summary["reports_unreadable"].append(rel(report_path))
             continue
         summary["reports_scanned"] += 1
+
+        # Health status rollup: prefer batch-level session_history_summary,
+        # fall back to single-plot session_health_snapshot.
+        health_status: str | None = None
+        history_summary = report.get("session_history_summary")
+        if isinstance(history_summary, dict) and history_summary.get("health_status"):
+            health_status = str(history_summary.get("health_status"))
+        else:
+            snapshot = report.get("session_health_snapshot")
+            if isinstance(snapshot, dict) and snapshot.get("health_status"):
+                health_status = str(snapshot.get("health_status"))
+        if health_status is not None:
+            summary["reports_with_health_status"] += 1
+            counts = summary["health_status_counts"]
+            counts[health_status] = int(counts.get(health_status, 0)) + 1
+        else:
+            summary["reports_without_health_status"] += 1
+
         for entry in iter_single_reports(report):
             fitting = entry.get("fitting") or {}
             fit_models = fitting.get("models") or []

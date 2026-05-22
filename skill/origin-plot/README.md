@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.5.
+Current version: v0.8.6.
 
 ## Supported formats
 
@@ -739,6 +739,94 @@ Manually invoked offline guard. It runs `run_smoke_tests.py --skip-origin` and e
 ### Why health stays a soft signal
 
 Health is meant to surface trends in the Origin install. A degraded streak indicates upcoming issues but should never invalidate a successful plot run. Plot pass/fail depends only on actual outputs, retries, and pipeline outcomes — never on the health observation.
+
+## v0.8.6 Operator Health UX
+
+v0.8.6 makes session health observable per single run, lets operators tune thresholds without editing YAML, rolls health up across reports, and documents the contributor workflow.
+
+### Health policy CLI overrides
+
+```powershell
+py scripts\origin_plot_from_config.py --config <config> ^
+    --health-recent-window 5 ^
+    --health-degraded-ok-after-retry-threshold 2 ^
+    --health-degraded-failed-threshold 1
+```
+
+CLI overrides have the highest priority (defaults < session_profile < `origin_session` < CLI). Validation rules:
+
+- `--health-recent-window`: integer 1–10000.
+- `--health-degraded-ok-after-retry-threshold`: integer 0–10000.
+- `--health-degraded-failed-threshold`: integer 0–10000.
+
+Threshold = 0 is allowed and produces a more sensitive degraded check (any matching event flips `health_status` to `degraded`).
+
+The single-plot report records:
+
+```json
+"origin_session": {
+  "health_policy_overrides": {
+    "recent_window": 5,
+    "degraded_ok_after_retry_threshold": 2,
+    "degraded_failed_threshold": 1
+  },
+  "effective_settings": {
+    "health": {
+      "recent_window": 5,
+      "degraded_ok_after_retry_threshold": 2,
+      "degraded_failed_threshold": 1
+    }
+  }
+}
+```
+
+### Single-plot `session_health_snapshot`
+
+Every single-plot report carries a snapshot computed after the new history entry is written:
+
+```json
+"session_health_snapshot": {
+  "history_path": "reports/session_history.json",
+  "entries_seen": 2,
+  "recent_window": 20,
+  "degraded_ok_after_retry_threshold": 3,
+  "degraded_failed_threshold": 1,
+  "recent_ok": 2,
+  "recent_ok_after_retry": 0,
+  "recent_failed": 0,
+  "recent_injection_triggered": 0,
+  "health_status": "ok"
+}
+```
+
+`health_status` is one of `ok`, `degraded`, or `unknown` (history missing or unreadable). Operators see health right after each run instead of waiting for the next batch.
+
+### Artifact summary `health_status_counts`
+
+`summarize_fit_artifacts.py` now rolls up health across reports:
+
+```json
+"health_status_counts": {"ok": 2, "degraded": 0, "unknown": 0},
+"reports_with_health_status": 2,
+"reports_without_health_status": 1
+```
+
+Batch reports contribute via `session_history_summary.health_status`; single-plot reports contribute via `session_health_snapshot.health_status`. Reports without either field count under `reports_without_health_status` (typical for legacy single-plot or scan reports).
+
+### Contributor workflow
+
+A new repository-level `CONTRIBUTING.md` documents:
+
+- Project scope and branch rule.
+- Skill layout, safety rules, output/ ban.
+- Pre-commit smoke routine (`run_smoke_tests.py --skip-origin`).
+- Pre-tag full acceptance routine.
+- How to add new smoke tests and register them in `run_smoke_tests.py`.
+- `vX.Y` vs `vX.Y.Z` versioning convention.
+
+### Health is advisory
+
+`health_status` is still a soft signal. A `degraded` snapshot does not flip plot status. The plot pass/fail decision is based purely on artifacts, retries, and pipeline outcomes.
 
 ## YAML fields
 

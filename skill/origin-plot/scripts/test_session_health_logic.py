@@ -83,6 +83,65 @@ def test_health_validation_rejects_bad_values() -> None:
         raise AssertionError(f"merge should have rejected {payload!r}")
 
 
+def test_cli_health_overrides_helper_priority() -> None:
+    from origin_session_utils import cli_health_overrides
+
+    profile = {"health": {"recent_window": 10, "degraded_failed_threshold": 5}}
+    explicit = {"health": {"degraded_ok_after_retry_threshold": 7}}
+    cli_payload = cli_health_overrides(
+        recent_window=50,
+        degraded_failed_threshold=2,
+    )
+    assert_true(
+        cli_payload == {"recent_window": 50, "degraded_failed_threshold": 2},
+        f"cli_health_overrides payload mismatch: {cli_payload!r}",
+    )
+    merged = merge_session_settings(profile, explicit, {"health": cli_payload})
+    health = merged["health"]
+    assert_true(health["recent_window"] == 50, "CLI must override profile recent_window")
+    assert_true(
+        health["degraded_failed_threshold"] == 2,
+        "CLI must override profile failed threshold",
+    )
+    assert_true(
+        health["degraded_ok_after_retry_threshold"] == 7,
+        "explicit ok_after_retry threshold must be preserved when CLI omits it",
+    )
+
+
+def test_cli_health_overrides_helper_rejects_invalid() -> None:
+    from origin_session_utils import cli_health_overrides
+
+    bad_calls = [
+        dict(recent_window=0),
+        dict(recent_window=100001),
+        dict(degraded_ok_after_retry_threshold=-1),
+        dict(degraded_failed_threshold=10001),
+    ]
+    for payload in bad_calls:
+        try:
+            cli_health_overrides(**payload)
+        except ValueError:
+            continue
+        raise AssertionError(f"cli_health_overrides should have rejected {payload!r}")
+
+
+def test_cli_health_overrides_threshold_zero_allowed() -> None:
+    from origin_session_utils import cli_health_overrides
+
+    payload = cli_health_overrides(
+        degraded_ok_after_retry_threshold=0, degraded_failed_threshold=0
+    )
+    assert_true(
+        payload["degraded_ok_after_retry_threshold"] == 0,
+        "threshold=0 must be accepted (more sensitive degraded judgement)",
+    )
+    assert_true(
+        payload["degraded_failed_threshold"] == 0,
+        "failed threshold=0 must be accepted",
+    )
+
+
 def _evaluate_health(recent_failed: int, recent_ok_after_retry: int, policy: dict) -> str:
     if recent_failed >= policy["degraded_failed_threshold"]:
         return "degraded"
@@ -114,6 +173,9 @@ def run_all() -> int:
         test_health_defaults_present,
         test_health_merge_priority,
         test_health_validation_rejects_bad_values,
+        test_cli_health_overrides_helper_priority,
+        test_cli_health_overrides_helper_rejects_invalid,
+        test_cli_health_overrides_threshold_zero_allowed,
         test_health_status_rules,
     ]
     failed = 0
