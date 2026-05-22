@@ -14,7 +14,7 @@
         "png": {
           "path": "output\\origin_plot_scan\\sample_a\\sample_a.png",
           "exists": true,
-          "size_bytes": 16420
+          "size_bytes": 15777
         },
         "pdf": {
           "path": "output\\origin_plot_scan\\sample_a\\sample_a.pdf",
@@ -24,7 +24,7 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_a\\sample_a.opju",
           "exists": true,
-          "size_bytes": 27426
+          "size_bytes": 25897
         }
       },
       "warnings": [],
@@ -62,6 +62,27 @@
         "requested": false,
         "applied": false,
         "models": [],
+        "warnings": []
+      },
+      "fitting_annotation": {
+        "requested": false,
+        "applied": false,
+        "position": null,
+        "texts": [],
+        "warnings": []
+      },
+      "fitting_summary_csv": {
+        "requested": false,
+        "path": null,
+        "exists": false,
+        "rows_written": 0,
+        "warnings": []
+      },
+      "residuals": {
+        "csv_requested": false,
+        "csv_outputs": [],
+        "residual_plot_requested": false,
+        "residual_plot_outputs": [],
         "warnings": []
       },
       "error": null
@@ -74,7 +95,7 @@
         "png": {
           "path": "output\\origin_plot_scan\\sample_b\\sample_b.png",
           "exists": true,
-          "size_bytes": 17086
+          "size_bytes": 16378
         },
         "pdf": {
           "path": "output\\origin_plot_scan\\sample_b\\sample_b.pdf",
@@ -84,7 +105,7 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_b\\sample_b.opju",
           "exists": true,
-          "size_bytes": 26258
+          "size_bytes": 27406
         }
       },
       "warnings": [],
@@ -122,6 +143,27 @@
         "requested": false,
         "applied": false,
         "models": [],
+        "warnings": []
+      },
+      "fitting_annotation": {
+        "requested": false,
+        "applied": false,
+        "position": null,
+        "texts": [],
+        "warnings": []
+      },
+      "fitting_summary_csv": {
+        "requested": false,
+        "path": null,
+        "exists": false,
+        "rows_written": 0,
+        "warnings": []
+      },
+      "residuals": {
+        "csv_requested": false,
+        "csv_outputs": [],
+        "residual_plot_requested": false,
+        "residual_plot_outputs": [],
         "warnings": []
       },
       "error": null
@@ -134,7 +176,7 @@
         "png": {
           "path": "output\\origin_plot_scan\\sample_c\\sample_c.png",
           "exists": true,
-          "size_bytes": 17741
+          "size_bytes": 17029
         },
         "pdf": {
           "path": "output\\origin_plot_scan\\sample_c\\sample_c.pdf",
@@ -144,7 +186,7 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_c\\sample_c.opju",
           "exists": true,
-          "size_bytes": 27597
+          "size_bytes": 26153
         }
       },
       "warnings": [],
@@ -182,6 +224,27 @@
         "requested": false,
         "applied": false,
         "models": [],
+        "warnings": []
+      },
+      "fitting_annotation": {
+        "requested": false,
+        "applied": false,
+        "position": null,
+        "texts": [],
+        "warnings": []
+      },
+      "fitting_summary_csv": {
+        "requested": false,
+        "path": null,
+        "exists": false,
+        "rows_written": 0,
+        "warnings": []
+      },
+      "residuals": {
+        "csv_requested": false,
+        "csv_outputs": [],
+        "residual_plot_requested": false,
+        "residual_plot_outputs": [],
         "warnings": []
       },
       "error": null
@@ -208,6 +271,14 @@
     "jobs_fitting_applied": 0,
     "jobs_fitting_with_warnings": 0,
     "models_used": []
+  },
+  "fit_artifact_summary": {
+    "jobs_with_annotation_requested": 0,
+    "jobs_with_annotation_applied": 0,
+    "summary_csv_outputs": [],
+    "residual_csv_count": 0,
+    "residual_plot_count": 0,
+    "jobs_with_fit_artifact_warnings": 0
   },
   "manual_intervention": {
     "policy": "GUI dialog auto-clicking is intentionally not implemented.",

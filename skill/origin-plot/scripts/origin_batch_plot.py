@@ -104,6 +104,9 @@ def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> di
     style = report.get("style") or {}
     errorbar = report.get("errorbar") or {}
     fitting = report.get("fitting") or {}
+    fitting_annotation = report.get("fitting_annotation") or {}
+    fitting_summary_csv = report.get("fitting_summary_csv") or {}
+    residuals = report.get("residuals") or {}
     return {
         "name": name,
         "config": config,
@@ -114,6 +117,9 @@ def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> di
         "style_warnings": style.get("style_warnings", []),
         "errorbar": errorbar,
         "fitting": fitting,
+        "fitting_annotation": fitting_annotation,
+        "fitting_summary_csv": fitting_summary_csv,
+        "residuals": residuals,
         "error": None if status in {"PASS", "PASS with warnings"} else "; ".join(report.get("errors") or ["plot failed"]),
     }
 
@@ -272,6 +278,50 @@ def fitting_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def fit_artifact_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    annotation_requested = 0
+    annotation_applied = 0
+    summary_csv_outputs: list[str] = []
+    residual_csv_count = 0
+    residual_plot_count = 0
+    jobs_with_warnings = 0
+    for job in results:
+        annotation = job.get("fitting_annotation") or {}
+        summary_csv = job.get("fitting_summary_csv") or {}
+        residuals = job.get("residuals") or {}
+
+        if annotation.get("requested"):
+            annotation_requested += 1
+        if annotation.get("applied"):
+            annotation_applied += 1
+
+        if summary_csv.get("requested"):
+            csv_path = summary_csv.get("path")
+            if csv_path and csv_path not in summary_csv_outputs:
+                summary_csv_outputs.append(str(csv_path))
+
+        for record in residuals.get("csv_outputs") or []:
+            if record.get("exists"):
+                residual_csv_count += 1
+        for record in residuals.get("residual_plot_outputs") or []:
+            if record.get("png_exists"):
+                residual_plot_count += 1
+            if record.get("pdf_exists"):
+                residual_plot_count += 1
+
+        if annotation.get("warnings") or summary_csv.get("warnings") or residuals.get("warnings"):
+            jobs_with_warnings += 1
+
+    return {
+        "jobs_with_annotation_requested": annotation_requested,
+        "jobs_with_annotation_applied": annotation_applied,
+        "summary_csv_outputs": summary_csv_outputs,
+        "residual_csv_count": residual_csv_count,
+        "residual_plot_count": residual_plot_count,
+        "jobs_with_fit_artifact_warnings": jobs_with_warnings,
+    }
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -338,6 +388,7 @@ def main() -> int:
         "style_summary": style_summary(results),
         "errorbar_summary": errorbar_summary(results),
         "fitting_summary": fitting_summary(results),
+        "fit_artifact_summary": fit_artifact_summary(results),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,

@@ -18,8 +18,21 @@ fitting:
       output_curve_points: 100
       show_equation: true
       show_r_squared: true
+  annotation:
+    enabled: true
+    include_equation: true
+    include_r_squared: true
+    include_model_name: true
+    position: "top_left"
+  summary_csv:
+    enabled: true
+    path: "reports/fitting_summary.csv"
+  residuals:
+    export_csv: true
+    generate_residual_plot: true
+    output_dir: "output/origin_plot_residuals"
 
-graph_title: "Polynomial Fit Plot v0.7"
+graph_title: "Polynomial Fit Plot v0.8"
 x_title: "X"
 y_title: "Y"
 

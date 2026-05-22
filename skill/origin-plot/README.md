@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.7.
+Current version: v0.8.
 
 ## Supported formats
 
@@ -223,6 +223,97 @@ py scripts\origin_plot_from_config.py --config configs\fitting\poly2_fit_config.
 ```
 
 Reports include coefficients, an equation string, R squared, residual sum of squares, point count, and whether the fit curve was added to the Origin graph. If PNG/PDF/OPJU export succeeds but a fit curve cannot be added, the result is `PASS with warnings`.
+
+## v0.8 Fit Annotation, Summary CSV, and Residuals
+
+v0.8 extends v0.7 with three optional artifacts: in-graph fit annotations, a fit summary CSV that aggregates each fit model, and residual data export with an optional residual plot.
+
+### `fitting.annotation` schema
+
+```yaml
+fitting:
+  annotation:
+    enabled: true
+    include_equation: true
+    include_r_squared: true
+    include_model_name: true
+    position: "top_right"
+```
+
+`position` accepts `top_right`, `top_left`, `bottom_right`, or `bottom_left`. Annotation is best-effort through `originpro`. If Origin rejects the call or the layer axis range is unavailable, the script records `fitting_annotation.warnings`, leaves `fitting_annotation.applied=false`, and still exports PNG/PDF/OPJU.
+
+### `fitting.summary_csv` schema
+
+```yaml
+fitting:
+  summary_csv:
+    enabled: true
+    path: "reports/fitting_summary.csv"
+```
+
+`path` must be relative; absolute paths fail validation. The CSV is appended across runs so multiple plots can share one summary file.
+
+`fitting_summary.csv` columns:
+
+- `config`
+- `input_file`
+- `fit_name`
+- `y_column`
+- `model`
+- `degree`
+- `coefficients` (semicolon separated)
+- `equation`
+- `r_squared`
+- `residual_sum_of_squares`
+- `n_points`
+- `curve_added_to_origin`
+- `annotation_applied`
+
+### `fitting.residuals` schema
+
+```yaml
+fitting:
+  residuals:
+    export_csv: true
+    generate_residual_plot: true
+    output_dir: "output/origin_plot_residuals"
+```
+
+`output_dir` must be relative; absolute paths fail validation.
+
+Residual CSVs are written under `reports/residuals/`, one file per fit:
+
+```text
+reports/residuals/<output_basename>_<fit_name>_residuals.csv
+```
+
+Residual CSV columns:
+
+- `x`
+- `y_observed`
+- `y_fitted`
+- `residual`
+
+Residual plots use matplotlib and write PNG/PDF under the configured `output_dir`:
+
+```text
+output/origin_plot_residuals/<output_basename>_<fit_name>_residual.png
+output/origin_plot_residuals/<output_basename>_<fit_name>_residual.pdf
+```
+
+### Status policy
+
+The single-plot status moves from `PASS` to `PASS with warnings` when any of the following are true:
+
+- Annotation was requested but `fitting_annotation.applied=false`.
+- Summary CSV was requested but the file does not exist after the run.
+- Any residual warning was recorded.
+
+Annotation, summary CSV, and residual plot generation are best-effort artifacts. If main PNG/PDF/OPJU exports succeed and any single artifact fails, the run is reported as `PASS with warnings`. The script never claims an artifact was applied when it was not.
+
+### Backward compatibility
+
+Configurations without `fitting.annotation`, `fitting.summary_csv`, or `fitting.residuals` continue to work. Reports always emit the three v0.8 fields (`fitting_annotation`, `fitting_summary_csv`, `residuals`) with `requested=false` defaults.
 
 ## YAML fields
 

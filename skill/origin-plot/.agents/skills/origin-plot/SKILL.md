@@ -192,6 +192,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.5: style and export profile MVP using reusable YAML profiles under `configs\styles\` and `configs\exports\`.
 - v0.6: error bar MVP using `graph_type: errorbar`, `y_error_columns`, and optional `x_error_column`.
 - v0.7: curve fitting MVP using Python-side linear and polynomial fitting, with fit curves added to Origin as generated worksheet columns.
+- v0.8: fit annotation, fitting summary CSV, and residual CSV plus optional residual plot artifacts on top of v0.7.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -439,3 +440,114 @@ Batch reports include `fitting_summary` with counts for requesting jobs, applied
 - Fit curves are overlaid on the Origin graph when supported.
 - Requested PNG/PDF/OPJU outputs exist.
 - If fit curve overlay fails but exports exist, mark `PASS with warnings` and report the failure.
+
+## v0.8 Fit Annotation Workflow
+
+Use v0.8 fit annotations when the user wants the fitted equation, R squared, or model name displayed inside the Origin graph. Add an `annotation` block under `fitting`:
+
+```yaml
+fitting:
+  annotation:
+    enabled: true
+    include_equation: true
+    include_r_squared: true
+    include_model_name: true
+    position: "top_right"
+```
+
+`position` accepts `top_right`, `top_left`, `bottom_right`, or `bottom_left`. Annotation is best-effort through `layer.add_label`. Never claim annotation success if Origin rejects the call. Reports must always carry `fitting_annotation.applied` truthfully.
+
+## Fit Summary CSV Contract
+
+Use `fitting.summary_csv` to centralize fit metrics across runs. The CSV is appended across runs so a batch can build one summary file:
+
+```yaml
+fitting:
+  summary_csv:
+    enabled: true
+    path: "reports/fitting_summary.csv"
+```
+
+`path` must be relative. Required columns:
+
+- `config`
+- `input_file`
+- `fit_name`
+- `y_column`
+- `model`
+- `degree`
+- `coefficients` (semicolon separated string)
+- `equation`
+- `r_squared`
+- `residual_sum_of_squares`
+- `n_points`
+- `curve_added_to_origin`
+- `annotation_applied`
+
+The single-plot report includes:
+
+```json
+"fitting_summary_csv": {
+  "requested": true,
+  "path": "reports/fitting_summary.csv",
+  "exists": true,
+  "rows_written": 1,
+  "warnings": []
+}
+```
+
+## Residual Data Workflow
+
+Enable residual export when the user wants per-point residuals saved to disk:
+
+```yaml
+fitting:
+  residuals:
+    export_csv: true
+    generate_residual_plot: true
+    output_dir: "output/origin_plot_residuals"
+```
+
+`output_dir` must be relative. Residual CSVs are written under `reports/residuals/`:
+
+```text
+reports/residuals/<output_basename>_<fit_name>_residuals.csv
+```
+
+Required columns: `x`, `y_observed`, `y_fitted`, `residual`.
+
+## Residual Plot Workflow
+
+Residual plots use matplotlib (Agg backend) and write PNG plus PDF to the configured `output_dir`:
+
+```text
+output/origin_plot_residuals/<output_basename>_<fit_name>_residual.png
+output/origin_plot_residuals/<output_basename>_<fit_name>_residual.pdf
+```
+
+If matplotlib is unavailable or the plot generation fails, record the issue under `residuals.warnings` and let the run finish as `PASS with warnings` provided main PNG/PDF/OPJU outputs exist.
+
+The single-plot report includes:
+
+```json
+"residuals": {
+  "csv_requested": true,
+  "csv_outputs": [],
+  "residual_plot_requested": true,
+  "residual_plot_outputs": [],
+  "warnings": []
+}
+```
+
+## v0.8 Acceptance Criteria
+
+- Fitting configs may include `annotation`, `summary_csv`, and `residuals` blocks. Configs without any of them remain valid.
+- Validator rejects absolute paths in `fitting.summary_csv.path` and `fitting.residuals.output_dir`.
+- Validator rejects unsupported `fitting.annotation.position` values.
+- Reports always include `fitting_annotation`, `fitting_summary_csv`, and `residuals` fields, even when not requested.
+- Annotation success or failure is reported truthfully through `fitting_annotation.applied`.
+- `fitting_summary.csv` exists with the requested rows and columns when `summary_csv.enabled=true`.
+- Residual CSVs exist and have the four required columns when `residuals.export_csv=true`.
+- Residual PNG and PDF exist when `residuals.generate_residual_plot=true` and matplotlib is available.
+- Batch report includes a `fit_artifact_summary` block with annotation counts, summary CSV outputs, residual CSV count, residual plot count, and jobs with fit-artifact warnings.
+- Reports use relative paths and never claim GUI automation.

@@ -14,6 +14,7 @@ SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
+SUPPORTED_ANNOTATION_POSITIONS = {"top_right", "top_left", "bottom_right", "bottom_left"}
 MANUAL_INTERVENTION = {
     "user_reported_manual_ok": True,
     "current_rerun_popup_observed_by_user": False,
@@ -222,6 +223,71 @@ def normalize_fit_config(config: dict[str, Any], y_columns: list[str]) -> tuple[
     return enabled, normalized, warnings
 
 
+def normalize_fit_artifact_config(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    fitting = config.get("fitting") or {}
+    if not isinstance(fitting, dict):
+        raise ValueError("fitting must be a mapping.")
+
+    annotation_raw = fitting.get("annotation") or {}
+    if annotation_raw and not isinstance(annotation_raw, dict):
+        raise ValueError("fitting.annotation must be a mapping.")
+    annotation_enabled = annotation_raw.get("enabled", False)
+    if not isinstance(annotation_enabled, bool):
+        raise ValueError("fitting.annotation.enabled must be a boolean.")
+    position = str(annotation_raw.get("position", "top_right")).lower()
+    if annotation_raw and "position" in annotation_raw and position not in SUPPORTED_ANNOTATION_POSITIONS:
+        raise ValueError(
+            f"fitting.annotation.position must be one of {sorted(SUPPORTED_ANNOTATION_POSITIONS)}."
+        )
+    annotation = {
+        "enabled": bool(annotation_enabled),
+        "include_equation": bool(annotation_raw.get("include_equation", True)),
+        "include_r_squared": bool(annotation_raw.get("include_r_squared", True)),
+        "include_model_name": bool(annotation_raw.get("include_model_name", True)),
+        "position": position,
+    }
+
+    summary_csv_raw = fitting.get("summary_csv") or {}
+    if summary_csv_raw and not isinstance(summary_csv_raw, dict):
+        raise ValueError("fitting.summary_csv must be a mapping.")
+    summary_csv_enabled = summary_csv_raw.get("enabled", False)
+    if not isinstance(summary_csv_enabled, bool):
+        raise ValueError("fitting.summary_csv.enabled must be a boolean.")
+    summary_csv_path = summary_csv_raw.get("path", "reports/fitting_summary.csv")
+    if not isinstance(summary_csv_path, str) or not summary_csv_path:
+        raise ValueError("fitting.summary_csv.path must be a non-empty string.")
+    if Path(summary_csv_path).is_absolute():
+        raise ValueError(f"fitting.summary_csv.path must be relative: {summary_csv_path}")
+    summary_csv = {
+        "enabled": bool(summary_csv_enabled),
+        "path": summary_csv_path,
+    }
+
+    residuals_raw = fitting.get("residuals") or {}
+    if residuals_raw and not isinstance(residuals_raw, dict):
+        raise ValueError("fitting.residuals must be a mapping.")
+    export_csv = residuals_raw.get("export_csv", False)
+    if not isinstance(export_csv, bool):
+        raise ValueError("fitting.residuals.export_csv must be a boolean.")
+    generate_plot = residuals_raw.get("generate_residual_plot", False)
+    if not isinstance(generate_plot, bool):
+        raise ValueError("fitting.residuals.generate_residual_plot must be a boolean.")
+    residuals_output_dir = residuals_raw.get("output_dir", "output/origin_plot_residuals")
+    if not isinstance(residuals_output_dir, str) or not residuals_output_dir:
+        raise ValueError("fitting.residuals.output_dir must be a non-empty string.")
+    if Path(residuals_output_dir).is_absolute():
+        raise ValueError(
+            f"fitting.residuals.output_dir must be relative: {residuals_output_dir}"
+        )
+    residuals = {
+        "export_csv": bool(export_csv),
+        "generate_residual_plot": bool(generate_plot),
+        "output_dir": residuals_output_dir,
+    }
+
+    return annotation, summary_csv, residuals
+
+
 def output_status(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {"path": None, "exists": False, "size_bytes": 0}
@@ -247,6 +313,9 @@ def build_report(
     style: dict[str, Any],
     errorbar: dict[str, Any],
     fitting: dict[str, Any],
+    fitting_annotation: dict[str, Any],
+    fitting_summary_csv: dict[str, Any],
+    residuals: dict[str, Any],
     warnings: list[str],
     errors: list[str],
 ) -> dict[str, Any]:
@@ -264,6 +333,9 @@ def build_report(
         "style": style,
         "errorbar": errorbar,
         "fitting": fitting,
+        "fitting_annotation": fitting_annotation,
+        "fitting_summary_csv": fitting_summary_csv,
+        "residuals": residuals,
         "manual_intervention": MANUAL_INTERVENTION,
         "warnings": warnings,
         "errors": errors,
@@ -442,6 +514,228 @@ def compute_fit_models(plot_df: Any, x_column: str, fit_models: list[dict[str, A
     return result_df, results
 
 
+def compute_residual_records(plot_df: Any, x_column: str, fit_results: list[dict[str, Any]]) -> dict[str, list[dict[str, float]]]:
+    import numpy as np
+    import pandas as pd
+
+    records: dict[str, list[dict[str, float]]] = {}
+    for model_result in fit_results:
+        coefficients = model_result.get("coefficients") or []
+        if not coefficients:
+            continue
+        y_column = model_result["y_column"]
+        valid = pd.DataFrame({"x": plot_df[x_column], "y": plot_df[y_column]}).dropna()
+        if valid.empty:
+            continue
+        x = valid["x"].to_numpy(dtype=float)
+        y = valid["y"].to_numpy(dtype=float)
+        y_pred = np.polyval(coefficients, x)
+        residuals = y - y_pred
+        rows = [
+            {
+                "x": float(x_value),
+                "y_observed": float(y_value),
+                "y_fitted": float(y_pred_value),
+                "residual": float(residual_value),
+            }
+            for x_value, y_value, y_pred_value, residual_value in zip(x, y, y_pred, residuals)
+        ]
+        records[model_result["name"]] = rows
+    return records
+
+
+def write_residual_csvs(
+    config_path: Path,
+    output_basename: str,
+    fit_results: list[dict[str, Any]],
+    residual_records: dict[str, list[dict[str, float]]],
+    residuals_output_dir: Path,
+    csv_root: Path,
+    residual_info: dict[str, Any],
+) -> None:
+    import pandas as pd
+
+    csv_root.mkdir(parents=True, exist_ok=True)
+    for model_result in fit_results:
+        name = model_result["name"]
+        rows = residual_records.get(name)
+        if not rows:
+            warning = f"residual rows unavailable for {name}; CSV not written"
+            residual_info["warnings"].append(warning)
+            model_result.setdefault("warnings", []).append(warning)
+            continue
+        target = csv_root / f"{output_basename}_{name}_residuals.csv"
+        try:
+            pd.DataFrame(rows).to_csv(target, index=False)
+        except Exception as exc:  # noqa: BLE001 - record and continue
+            warning = f"residual CSV write failed for {name}: {type(exc).__name__}: {exc}"
+            residual_info["warnings"].append(warning)
+            model_result.setdefault("warnings", []).append(warning)
+            continue
+        residual_info["csv_outputs"].append(
+            {
+                "fit_name": name,
+                "path": rel(target),
+                "exists": target.exists(),
+                "rows_written": len(rows),
+                "size_bytes": target.stat().st_size if target.exists() else 0,
+            }
+        )
+
+
+def generate_residual_plot_files(
+    output_basename: str,
+    fit_results: list[dict[str, Any]],
+    residual_records: dict[str, list[dict[str, float]]],
+    residuals_output_dir: Path,
+    residual_info: dict[str, Any],
+) -> None:
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception as exc:  # noqa: BLE001 - matplotlib is optional
+        residual_info["warnings"].append(
+            f"residual plot skipped: matplotlib unavailable ({type(exc).__name__}: {exc})"
+        )
+        return
+
+    residuals_output_dir.mkdir(parents=True, exist_ok=True)
+    for model_result in fit_results:
+        name = model_result["name"]
+        rows = residual_records.get(name)
+        if not rows:
+            warning = f"residual rows unavailable for {name}; residual plot not generated"
+            residual_info["warnings"].append(warning)
+            model_result.setdefault("warnings", []).append(warning)
+            continue
+        x_values = [row["x"] for row in rows]
+        residual_values = [row["residual"] for row in rows]
+        png_path = residuals_output_dir / f"{output_basename}_{name}_residual.png"
+        pdf_path = residuals_output_dir / f"{output_basename}_{name}_residual.pdf"
+        outputs_record: dict[str, Any] = {
+            "fit_name": name,
+            "png": rel(png_path),
+            "pdf": rel(pdf_path),
+            "png_exists": False,
+            "pdf_exists": False,
+        }
+        try:
+            fig, ax = plt.subplots(figsize=(6, 4), dpi=150)
+            ax.axhline(0.0, color="#999999", linewidth=0.8)
+            ax.scatter(x_values, residual_values, color="#1f77b4")
+            ax.set_xlabel("X")
+            ax.set_ylabel("Residual (observed - fitted)")
+            ax.set_title(f"{name} residuals")
+            fig.tight_layout()
+            fig.savefig(png_path)
+            fig.savefig(pdf_path)
+            plt.close(fig)
+        except Exception as exc:  # noqa: BLE001 - record warning and continue
+            warning = f"residual plot generation failed for {name}: {type(exc).__name__}: {exc}"
+            residual_info["warnings"].append(warning)
+            model_result.setdefault("warnings", []).append(warning)
+            try:
+                plt.close("all")
+            except Exception:
+                pass
+            residual_info["residual_plot_outputs"].append(outputs_record)
+            continue
+        outputs_record["png_exists"] = png_path.exists()
+        outputs_record["pdf_exists"] = pdf_path.exists()
+        residual_info["residual_plot_outputs"].append(outputs_record)
+
+
+def annotation_anchor_text(position: str) -> tuple[float, float]:
+    mapping = {
+        "top_right": (0.97, 0.97),
+        "top_left": (0.03, 0.97),
+        "bottom_right": (0.97, 0.05),
+        "bottom_left": (0.03, 0.05),
+    }
+    return mapping.get(position, mapping["top_right"])
+
+
+def build_annotation_text(model_result: dict[str, Any], annotation_cfg: dict[str, Any]) -> str | None:
+    if not model_result.get("coefficients"):
+        return None
+    parts: list[str] = []
+    if annotation_cfg.get("include_model_name", True):
+        parts.append(str(model_result.get("name", "fit")))
+    if annotation_cfg.get("include_equation", True):
+        equation = model_result.get("equation")
+        if equation:
+            parts.append(str(equation))
+    if annotation_cfg.get("include_r_squared", True):
+        r_squared = model_result.get("r_squared")
+        if r_squared is not None:
+            parts.append(f"R^2 = {float(r_squared):.6g}")
+    if not parts:
+        return None
+    return "\n".join(parts)
+
+
+def append_summary_csv_row(
+    summary_csv_path: Path,
+    config_path: Path,
+    input_path: Path | None,
+    fit_results: list[dict[str, Any]],
+    annotation_applied: bool,
+) -> tuple[int, list[str]]:
+    import csv
+
+    warnings: list[str] = []
+    rows_written = 0
+    fieldnames = [
+        "config",
+        "input_file",
+        "fit_name",
+        "y_column",
+        "model",
+        "degree",
+        "coefficients",
+        "equation",
+        "r_squared",
+        "residual_sum_of_squares",
+        "n_points",
+        "curve_added_to_origin",
+        "annotation_applied",
+    ]
+    summary_csv_path.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = summary_csv_path.exists()
+    try:
+        with summary_csv_path.open("a", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            if not file_exists:
+                writer.writeheader()
+            for model_result in fit_results:
+                coefficients = model_result.get("coefficients") or []
+                writer.writerow(
+                    {
+                        "config": rel(config_path),
+                        "input_file": rel(input_path) if input_path else "",
+                        "fit_name": model_result.get("name", ""),
+                        "y_column": model_result.get("y_column", ""),
+                        "model": model_result.get("model", ""),
+                        "degree": int(model_result.get("degree", 0) or 0),
+                        "coefficients": ";".join(f"{float(value):.10g}" for value in coefficients),
+                        "equation": str(model_result.get("equation") or ""),
+                        "r_squared": "" if model_result.get("r_squared") is None else f"{float(model_result['r_squared']):.10g}",
+                        "residual_sum_of_squares": ""
+                        if model_result.get("residual_sum_of_squares") is None
+                        else f"{float(model_result['residual_sum_of_squares']):.10g}",
+                        "n_points": int(model_result.get("n_points", 0) or 0),
+                        "curve_added_to_origin": bool(model_result.get("curve_added_to_origin", False)),
+                        "annotation_applied": bool(annotation_applied),
+                    }
+                )
+                rows_written += 1
+    except Exception as exc:  # noqa: BLE001 - record warning, continue
+        warnings.append(f"failed to append fitting summary CSV: {type(exc).__name__}: {exc}")
+    return rows_written, warnings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate Origin plot from v0.2 YAML configuration.")
     parser.add_argument("--config", default="configs/origin_plot_config.yaml")
@@ -479,6 +773,27 @@ def main() -> int:
         "models": [],
         "warnings": [],
     }
+    fitting_annotation_info: dict[str, Any] = {
+        "requested": False,
+        "applied": False,
+        "position": None,
+        "texts": [],
+        "warnings": [],
+    }
+    fitting_summary_csv_info: dict[str, Any] = {
+        "requested": False,
+        "path": None,
+        "exists": False,
+        "rows_written": 0,
+        "warnings": [],
+    }
+    residuals_info: dict[str, Any] = {
+        "csv_requested": False,
+        "csv_outputs": [],
+        "residual_plot_requested": False,
+        "residual_plot_outputs": [],
+        "warnings": [],
+    }
     op = None
 
     try:
@@ -501,11 +816,33 @@ def main() -> int:
         row_count_used = int(len(plot_df))
         fitting_enabled, fit_models, fitting_warnings = normalize_fit_config(effective_config, y_columns)
         plot_df, fit_results = compute_fit_models(plot_df, x_column, fit_models, fitting_warnings)
+        annotation_cfg, summary_csv_cfg, residuals_cfg = normalize_fit_artifact_config(effective_config)
         fitting_info = {
             "requested": fitting_enabled,
             "applied": False,
             "models": fit_results,
             "warnings": fitting_warnings,
+        }
+        fitting_annotation_info = {
+            "requested": bool(fitting_enabled and annotation_cfg.get("enabled")),
+            "applied": False,
+            "position": annotation_cfg.get("position") if annotation_cfg.get("enabled") else None,
+            "texts": [],
+            "warnings": [],
+        }
+        fitting_summary_csv_info = {
+            "requested": bool(fitting_enabled and summary_csv_cfg.get("enabled")),
+            "path": summary_csv_cfg.get("path") if summary_csv_cfg.get("enabled") else None,
+            "exists": False,
+            "rows_written": 0,
+            "warnings": [],
+        }
+        residuals_info = {
+            "csv_requested": bool(fitting_enabled and residuals_cfg.get("export_csv")),
+            "csv_outputs": [],
+            "residual_plot_requested": bool(fitting_enabled and residuals_cfg.get("generate_residual_plot")),
+            "residual_plot_outputs": [],
+            "warnings": [],
         }
         errorbar_info = {
             "requested": graph_type == "errorbar",
@@ -667,6 +1004,81 @@ def main() -> int:
             layer.rescale()
             style_info["applied_style_features"].append("graph.rescale")
 
+        if fitting_annotation_info["requested"]:
+            applied_count = 0
+            try:
+                xlim = layer.xlim
+                ylim = layer.ylim
+            except Exception as exc:  # noqa: BLE001 - axis range may be unavailable on some Origin versions
+                xlim = None
+                ylim = None
+                fitting_annotation_info["warnings"].append(
+                    f"could not read layer axis range for annotation placement: {type(exc).__name__}: {exc}"
+                )
+
+            anchor_x_frac, anchor_y_frac = annotation_anchor_text(annotation_cfg.get("position", "top_right"))
+            applicable = [m for m in fitting_info["models"] if m.get("coefficients")]
+            for index, model_result in enumerate(applicable):
+                text = build_annotation_text(model_result, annotation_cfg)
+                if not text:
+                    continue
+                place_x: float | None
+                place_y: float | None
+                if (
+                    isinstance(xlim, (tuple, list))
+                    and isinstance(ylim, (tuple, list))
+                    and len(xlim) >= 2
+                    and len(ylim) >= 2
+                ):
+                    try:
+                        x_min = float(xlim[0])
+                        x_max = float(xlim[1])
+                        y_min = float(ylim[0])
+                        y_max = float(ylim[1])
+                        place_x = x_min + (x_max - x_min) * anchor_x_frac
+                        # stagger vertically when there are multiple annotations
+                        offset_frac = 0.08 * index
+                        place_y = y_min + (y_max - y_min) * max(0.0, anchor_y_frac - offset_frac)
+                    except Exception as exc:  # noqa: BLE001
+                        fitting_annotation_info["warnings"].append(
+                            f"failed to compute annotation position for {model_result['name']}: {type(exc).__name__}: {exc}"
+                        )
+                        place_x = None
+                        place_y = None
+                else:
+                    place_x = None
+                    place_y = None
+
+                try:
+                    label = layer.add_label(text, place_x, place_y)
+                    if label is None:
+                        raise RuntimeError("layer.add_label returned None")
+                    fitting_annotation_info["texts"].append(
+                        {
+                            "fit_name": model_result.get("name"),
+                            "text": text,
+                            "x": place_x,
+                            "y": place_y,
+                        }
+                    )
+                    applied_count += 1
+                except Exception as exc:  # noqa: BLE001 - annotation is best-effort
+                    warning = (
+                        f"could not add annotation for {model_result.get('name')}: {type(exc).__name__}: {exc}"
+                    )
+                    fitting_annotation_info["warnings"].append(warning)
+
+            requested_count = len(applicable)
+            fitting_annotation_info["applied"] = requested_count > 0 and applied_count == requested_count
+            if requested_count == 0:
+                fitting_annotation_info["warnings"].append(
+                    "fitting.annotation.enabled=true but no fit models with coefficients were available."
+                )
+            elif not fitting_annotation_info["applied"]:
+                fitting_annotation_info["warnings"].append(
+                    f"only added {applied_count} of {requested_count} fit annotation(s) to Origin."
+                )
+
         if outputs["png"] is not None:
             graph.save_fig(str(outputs["png"]), width=int(effective_config.get("png_width") or 0))
         if outputs["pdf"] is not None:
@@ -674,11 +1086,67 @@ def main() -> int:
         if outputs["opju"] is not None:
             op.save(str(outputs["opju"]))
 
+        residual_records: dict[str, list[dict[str, float]]] = {}
+        if (residuals_info["csv_requested"] or residuals_info["residual_plot_requested"]) and fitting_info["models"]:
+            residual_records = compute_residual_records(plot_df, x_column, fitting_info["models"])
+
+        if residuals_info["csv_requested"]:
+            residual_csv_root = PROJECT_ROOT / "reports" / "residuals"
+            write_residual_csvs(
+                config_path,
+                basename,
+                fitting_info["models"],
+                residual_records,
+                resolve_project_path(str(residuals_cfg.get("output_dir") or "output/origin_plot_residuals")),
+                residual_csv_root,
+                residuals_info,
+            )
+
+        if residuals_info["residual_plot_requested"]:
+            residual_plot_dir = resolve_project_path(
+                str(residuals_cfg.get("output_dir") or "output/origin_plot_residuals")
+            )
+            generate_residual_plot_files(
+                basename,
+                fitting_info["models"],
+                residual_records,
+                residual_plot_dir,
+                residuals_info,
+            )
+
+        if fitting_summary_csv_info["requested"] and fitting_info["models"]:
+            summary_csv_path = resolve_project_path(str(summary_csv_cfg.get("path")))
+            rows_written, summary_warnings = append_summary_csv_row(
+                summary_csv_path,
+                config_path,
+                input_path,
+                fitting_info["models"],
+                bool(fitting_annotation_info.get("applied")),
+            )
+            fitting_summary_csv_info["path"] = rel(summary_csv_path)
+            fitting_summary_csv_info["exists"] = summary_csv_path.exists()
+            fitting_summary_csv_info["rows_written"] = rows_written
+            fitting_summary_csv_info["warnings"].extend(summary_warnings)
+        elif fitting_summary_csv_info["requested"]:
+            fitting_summary_csv_info["warnings"].append(
+                "fitting.summary_csv.enabled=true but no fit models were available to write."
+            )
+
         missing = [name for name, path in outputs.items() if path is not None and not path.exists()]
         status = "PASS" if not missing else "PARTIAL PASS"
         if status == "PASS" and errorbar_info["requested"] and not errorbar_info["applied"]:
             status = "PASS with warnings"
         if status == "PASS" and fitting_info["requested"] and not fitting_info["applied"]:
+            status = "PASS with warnings"
+        if status == "PASS" and fitting_annotation_info["requested"] and not fitting_annotation_info["applied"]:
+            status = "PASS with warnings"
+        if (
+            status == "PASS"
+            and fitting_summary_csv_info["requested"]
+            and not fitting_summary_csv_info["exists"]
+        ):
+            status = "PASS with warnings"
+        if status == "PASS" and residuals_info["warnings"]:
             status = "PASS with warnings"
         if missing:
             errors.append(f"Missing requested outputs: {missing}")
@@ -702,6 +1170,9 @@ def main() -> int:
             style_info,
             errorbar_info,
             fitting_info,
+            fitting_annotation_info,
+            fitting_summary_csv_info,
+            residuals_info,
             warnings,
             errors,
         )
@@ -725,6 +1196,9 @@ def main() -> int:
             style_info,
             errorbar_info,
             fitting_info,
+            fitting_annotation_info,
+            fitting_summary_csv_info,
+            residuals_info,
             warnings,
             errors,
         )

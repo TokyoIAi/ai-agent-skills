@@ -6,7 +6,7 @@ A personal collection of reusable AI Agent Skills for Codex, Claude Code, and lo
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | skill/origin-plot | v0.7 Curve Fitting MVP | Config-based, batch, directory-scan, style-profiled, error-bar-capable, and fitting-capable Origin / OriginPro plotting with CSV/XLSX/TSV/TXT input. |
+| origin-plot | skill/origin-plot | v0.8 Fit Annotation + Residuals MVP | Config-based, batch, directory-scan, style-profiled, error-bar-capable, fitting-capable, and fit-artifact-aware Origin / OriginPro plotting with CSV/XLSX/TSV/TXT input. |
 
 ## Repository layout
 

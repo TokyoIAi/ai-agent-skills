@@ -11,6 +11,7 @@ SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
+SUPPORTED_ANNOTATION_POSITIONS = {"top_right", "top_left", "bottom_right", "bottom_left"}
 
 
 def fail(message: str) -> None:
@@ -182,6 +183,70 @@ def normalize_fit_models(config: dict[str, Any], df: Any, x_column: str, y_colum
     return True, normalized, warnings
 
 
+def normalize_fit_artifacts(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[str]]:
+    warnings: list[str] = []
+    fitting = config.get("fitting") or {}
+    if not isinstance(fitting, dict):
+        fail("fitting must be a mapping.")
+
+    annotation = fitting.get("annotation") or {}
+    if annotation and not isinstance(annotation, dict):
+        fail("fitting.annotation must be a mapping.")
+    annotation_enabled_raw = annotation.get("enabled", False)
+    if not isinstance(annotation_enabled_raw, bool):
+        fail("fitting.annotation.enabled must be a boolean.")
+    position = str(annotation.get("position", "top_right")).lower()
+    if annotation and "position" in annotation and position not in SUPPORTED_ANNOTATION_POSITIONS:
+        fail(
+            f"fitting.annotation.position must be one of {sorted(SUPPORTED_ANNOTATION_POSITIONS)}; got {position!r}."
+        )
+    annotation_summary = {
+        "enabled": bool(annotation_enabled_raw),
+        "include_equation": bool(annotation.get("include_equation", True)),
+        "include_r_squared": bool(annotation.get("include_r_squared", True)),
+        "include_model_name": bool(annotation.get("include_model_name", True)),
+        "position": position,
+    }
+
+    summary_csv = fitting.get("summary_csv") or {}
+    if summary_csv and not isinstance(summary_csv, dict):
+        fail("fitting.summary_csv must be a mapping.")
+    summary_csv_enabled_raw = summary_csv.get("enabled", False)
+    if not isinstance(summary_csv_enabled_raw, bool):
+        fail("fitting.summary_csv.enabled must be a boolean.")
+    summary_csv_path = summary_csv.get("path", "reports/fitting_summary.csv")
+    if not isinstance(summary_csv_path, str) or not summary_csv_path:
+        fail("fitting.summary_csv.path must be a non-empty string.")
+    if Path(summary_csv_path).is_absolute():
+        fail(f"fitting.summary_csv.path must be a relative path: {summary_csv_path}")
+    summary_csv_summary = {
+        "enabled": bool(summary_csv_enabled_raw),
+        "path": summary_csv_path,
+    }
+
+    residuals = fitting.get("residuals") or {}
+    if residuals and not isinstance(residuals, dict):
+        fail("fitting.residuals must be a mapping.")
+    export_csv_raw = residuals.get("export_csv", False)
+    if not isinstance(export_csv_raw, bool):
+        fail("fitting.residuals.export_csv must be a boolean.")
+    generate_plot_raw = residuals.get("generate_residual_plot", False)
+    if not isinstance(generate_plot_raw, bool):
+        fail("fitting.residuals.generate_residual_plot must be a boolean.")
+    residuals_output_dir = residuals.get("output_dir", "output/origin_plot_residuals")
+    if not isinstance(residuals_output_dir, str) or not residuals_output_dir:
+        fail("fitting.residuals.output_dir must be a non-empty string.")
+    if Path(residuals_output_dir).is_absolute():
+        fail(f"fitting.residuals.output_dir must be a relative path: {residuals_output_dir}")
+    residuals_summary = {
+        "export_csv": bool(export_csv_raw),
+        "generate_residual_plot": bool(generate_plot_raw),
+        "output_dir": residuals_output_dir,
+    }
+
+    return annotation_summary, summary_csv_summary, residuals_summary, warnings
+
+
 def detect_format(input_path: Path, input_format: str | None) -> str:
     fmt = (input_format or "auto").lower()
     if fmt not in SUPPORTED_FORMATS:
@@ -262,6 +327,7 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         fail("Selected x/y columns must contain at least 2 valid numeric rows.")
     y_error_columns, x_error_column, errorbar_warnings = validate_errorbar_columns(config, df, y_columns)
     fitting_enabled, fitting_models, fitting_warnings = normalize_fit_models(config, df, x_column, y_columns)
+    annotation_summary, summary_csv_summary, residuals_summary, fit_artifact_warnings = normalize_fit_artifacts(config)
 
     summary = {
         "input_file": str(config["input_file"]),
@@ -280,6 +346,10 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         "fitting_enabled": fitting_enabled,
         "fitting_models": fitting_models,
         "fitting_validation_warnings": fitting_warnings,
+        "fitting_annotation": annotation_summary,
+        "fitting_summary_csv": summary_csv_summary,
+        "fitting_residuals": residuals_summary,
+        "fit_artifact_validation_warnings": fit_artifact_warnings,
         "output_dir": str(config["output_dir"]),
         "output_basename": str(config["output_basename"]),
     }

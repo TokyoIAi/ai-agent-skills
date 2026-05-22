@@ -1,7 +1,7 @@
 {
   "status": "PASS",
-  "config_path": "configs\\fitting\\poly2_fit_config.yaml",
-  "input_file": "data\\fit_poly_sample.csv",
+  "config_path": "configs\\errorbar\\errorbar_single_config.yaml",
+  "input_file": "data\\errorbar_sample.csv",
   "detected_format": "csv",
   "row_count_raw": 6,
   "row_count_used": 6,
@@ -9,22 +9,22 @@
   "y_columns": [
     "y"
   ],
-  "graph_type": "line_symbol",
+  "graph_type": "errorbar",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.png",
+      "path": "output\\origin_plot_errorbar\\errorbar_single.png",
       "exists": true,
-      "size_bytes": 16800
+      "size_bytes": 14210
     },
     "pdf": {
-      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.pdf",
+      "path": "output\\origin_plot_errorbar\\errorbar_single.pdf",
       "exists": true,
-      "size_bytes": 11919
+      "size_bytes": 8334
     },
     "opju": {
-      "path": "output\\origin_plot_fitting_poly2\\poly2_fit.opju",
+      "path": "output\\origin_plot_errorbar\\errorbar_single.opju",
       "exists": true,
-      "size_bytes": 26980
+      "size_bytes": 25118
     }
   },
   "style": {
@@ -48,36 +48,39 @@
     "style_warnings": []
   },
   "errorbar": {
-    "requested": false,
-    "applied": false,
+    "requested": true,
+    "applied": true,
     "x_error_column": null,
-    "y_error_columns": {},
+    "y_error_columns": {
+      "y": "y_err"
+    },
     "warnings": []
   },
   "fitting": {
-    "requested": true,
-    "applied": true,
-    "models": [
-      {
-        "name": "poly2_fit_y",
-        "y_column": "y",
-        "model": "polynomial",
-        "degree": 2,
-        "coefficients": [
-          0.9714285714285724,
-          0.15714285714285295,
-          0.985714285714294
-        ],
-        "equation": "y = 0.971429*x^2 + 0.157143*x + 0.985714",
-        "r_squared": 0.9999278603014738,
-        "residual_sum_of_squares": 0.03428571428571486,
-        "n_points": 6,
-        "curve_added_to_origin": true,
-        "warnings": [],
-        "fit_x_column": "poly2_fit_y_x",
-        "fit_y_column": "poly2_fit_y_y"
-      }
-    ],
+    "requested": false,
+    "applied": false,
+    "models": [],
+    "warnings": []
+  },
+  "fitting_annotation": {
+    "requested": false,
+    "applied": false,
+    "position": null,
+    "texts": [],
+    "warnings": []
+  },
+  "fitting_summary_csv": {
+    "requested": false,
+    "path": null,
+    "exists": false,
+    "rows_written": 0,
+    "warnings": []
+  },
+  "residuals": {
+    "csv_requested": false,
+    "csv_outputs": [],
+    "residual_plot_requested": false,
+    "residual_plot_outputs": [],
     "warnings": []
   },
   "manual_intervention": {
