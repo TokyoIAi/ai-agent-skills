@@ -352,6 +352,30 @@ def origin_session_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def session_test_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    jobs_with_retry_used = 0
+    jobs_with_injection_triggered = 0
+    jobs_with_cli_session_overrides = 0
+    status_counts: dict[str, int] = {}
+    for job in results:
+        session = job.get("origin_session") or {}
+        if session.get("retry_used"):
+            jobs_with_retry_used += 1
+        if session.get("injection_triggered"):
+            jobs_with_injection_triggered += 1
+        cli_overrides = session.get("cli_session_overrides") or {}
+        if cli_overrides:
+            jobs_with_cli_session_overrides += 1
+        fss = str(session.get("final_session_status") or "unknown")
+        status_counts[fss] = status_counts.get(fss, 0) + 1
+    return {
+        "jobs_with_retry_used": jobs_with_retry_used,
+        "jobs_with_injection_triggered": jobs_with_injection_triggered,
+        "jobs_with_cli_session_overrides": jobs_with_cli_session_overrides,
+        "final_session_status_counts": status_counts,
+    }
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -420,6 +444,7 @@ def main() -> int:
         "fitting_summary": fitting_summary(results),
         "fit_artifact_summary": fit_artifact_summary(results),
         "origin_session_summary": origin_session_summary(results),
+        "session_test_summary": session_test_summary(results),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,

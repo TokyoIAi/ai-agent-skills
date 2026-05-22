@@ -393,6 +393,65 @@ def save_report(report: dict[str, Any]) -> None:
     print(f"Report: {rel(REPORT_PATH)}")
 
 
+SESSION_HISTORY_PATH = PROJECT_ROOT / "reports" / "session_history.json"
+
+
+def update_session_history(report: dict[str, Any]) -> dict[str, Any]:
+    """Append a session history entry and return the session_history report block."""
+    from datetime import datetime, timezone
+
+    history_info: dict[str, Any] = {
+        "path": rel(SESSION_HISTORY_PATH),
+        "updated": False,
+        "entry_count_after_update": 0,
+        "warnings": [],
+    }
+    session = report.get("origin_session") or {}
+    entry = {
+        "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "config": report.get("config_path") or "",
+        "output_basename": report.get("outputs", {}).get("png", {}).get("path", "").rsplit("\\", 1)[-1].rsplit("/", 1)[-1].replace(".png", "") if report.get("outputs") else "",
+        "status": report.get("status") or "",
+        "retry_used": bool(session.get("retry_used")),
+        "attempts": int(session.get("attempts") or 0),
+        "injection_triggered": bool(session.get("injection_triggered")),
+        "final_session_status": str(session.get("final_session_status") or "unknown"),
+        "session_errors_count": len(session.get("session_errors") or []),
+    }
+
+    history: list[dict[str, Any]] = []
+    SESSION_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if SESSION_HISTORY_PATH.exists():
+        try:
+            raw = SESSION_HISTORY_PATH.read_text(encoding="utf-8")
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                history = parsed
+            else:
+                raise ValueError("session_history.json root is not an array")
+        except (json.JSONDecodeError, ValueError) as exc:
+            bak_path = SESSION_HISTORY_PATH.with_suffix(".json.bak")
+            try:
+                SESSION_HISTORY_PATH.rename(bak_path)
+                history_info["warnings"].append(
+                    f"session_history.json was corrupt ({type(exc).__name__}); backed up to {rel(bak_path)} and rebuilt"
+                )
+            except Exception as rename_exc:  # noqa: BLE001
+                history_info["warnings"].append(
+                    f"session_history.json was corrupt and backup failed: {type(rename_exc).__name__}: {rename_exc}"
+                )
+            history = []
+
+    history.append(entry)
+    try:
+        SESSION_HISTORY_PATH.write_text(json.dumps(history, indent=2, ensure_ascii=False), encoding="utf-8")
+        history_info["updated"] = True
+    except Exception as exc:  # noqa: BLE001
+        history_info["warnings"].append(f"failed to write session_history.json: {type(exc).__name__}: {exc}")
+    history_info["entry_count_after_update"] = len(history)
+    return history_info
+
+
 def prepare_data(config: dict[str, Any]):
     import pandas as pd
 
@@ -1395,6 +1454,8 @@ def main() -> int:
             errors,
         )
         save_report(report)
+        report["session_history"] = update_session_history(report)
+        save_report(report)
         return 0 if status in {"PASS", "PASS with warnings", "PASS with session_retry"} else 1
 
     except Exception as exc:  # noqa: BLE001 - print full traceback for automation failures
@@ -1421,6 +1482,8 @@ def main() -> int:
             warnings,
             errors,
         )
+        save_report(report)
+        report["session_history"] = update_session_history(report)
         save_report(report)
         return 1
     finally:

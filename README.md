@@ -6,7 +6,7 @@ A personal collection of reusable AI Agent Skills for Codex, Claude Code, and lo
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | skill/origin-plot | v0.8.2 Retry Path Test + Session Profiles | Config-based, batch, directory-scan, style-profiled, error-bar-capable, fitting-capable, fit-artifact-aware, Origin-session-resilient, and retry-test-verified OriginPro plotting with CSV/XLSX/TSV/TXT input. |
+| origin-plot | skill/origin-plot | v0.8.3 CLI Retry Smoke + Session History | Config-based, batch, directory-scan, style-profiled, error-bar-capable, fitting-capable, fit-artifact-aware, Origin-session-resilient, retry-test-verified, and session-history-tracked OriginPro plotting with CSV/XLSX/TSV/TXT input. |
 
 ## Repository layout
 

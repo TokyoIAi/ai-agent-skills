@@ -77,6 +77,9 @@ def collect_artifacts(reports_data: list[tuple[Path, dict[str, Any] | None]]) ->
         if report is None:
             summary["reports_unreadable"].append(rel(report_path))
             continue
+        if not isinstance(report, dict):
+            summary["reports_unreadable"].append(rel(report_path))
+            continue
         summary["reports_scanned"] += 1
         for entry in iter_single_reports(report):
             fitting = entry.get("fitting") or {}
@@ -163,17 +166,64 @@ def discover_reports_from_dir(reports_dir: Path, output_path: Path) -> list[Path
     if not reports_dir.exists() or not reports_dir.is_dir():
         return []
     output_resolved = output_path.resolve()
+    skip_names = {"origin_plot_v0_8_artifact_report.json", "session_history.json"}
     discovered: list[Path] = []
     for entry in sorted(reports_dir.glob("*.json")):
         if not entry.is_file():
             continue
-        # Skip the artifact summary itself to avoid self-referential pollution.
+        # Skip the artifact summary itself and non-report JSON files.
         if entry.resolve() == output_resolved:
             continue
-        if entry.name == "origin_plot_v0_8_artifact_report.json":
+        if entry.name in skip_names:
             continue
         discovered.append(entry)
     return discovered
+
+
+def is_injection_report(report: dict[str, Any]) -> bool:
+    """Return True if the report was produced with session error injection enabled."""
+    # Single-plot report: check top-level origin_session.
+    session = report.get("origin_session") or {}
+    if session.get("injection_triggered"):
+        return True
+    effective = session.get("effective_settings") or {}
+    if effective.get("inject_session_error_once"):
+        return True
+    # Batch report: check if any job used injection.
+    for job in report.get("jobs") or []:
+        if not isinstance(job, dict):
+            continue
+        job_session = job.get("origin_session") or {}
+        if job_session.get("injection_triggered"):
+            return True
+        job_effective = job_session.get("effective_settings") or {}
+        if job_effective.get("inject_session_error_once"):
+            return True
+    return False
+
+
+def filter_reports_by_injection(
+    reports_data: list[tuple[Path, dict[str, Any] | None]],
+    injection_filter: str,
+) -> list[tuple[Path, dict[str, Any] | None]]:
+    """Apply injection filter to loaded reports."""
+    if injection_filter == "include_all":
+        return reports_data
+    filtered: list[tuple[Path, dict[str, Any] | None]] = []
+    for path, report in reports_data:
+        if report is None:
+            filtered.append((path, report))
+            continue
+        if not isinstance(report, dict):
+            filtered.append((path, report))
+            continue
+        is_inj = is_injection_report(report)
+        if injection_filter == "exclude_injection" and is_inj:
+            continue
+        if injection_filter == "include_injection_only" and not is_inj:
+            continue
+        filtered.append((path, report))
+    return filtered
 
 
 def main() -> int:
@@ -196,7 +246,32 @@ def main() -> int:
         default="reports/origin_plot_v0_8_artifact_report.json",
         help="Destination report JSON (relative path).",
     )
+    parser.add_argument(
+        "--exclude-injection",
+        action="store_true",
+        help="Exclude reports produced with inject_session_error_once=true.",
+    )
+    parser.add_argument(
+        "--include-injection",
+        action="store_true",
+        help="Explicitly include injection reports (default behavior, marks the filter in output).",
+    )
+    parser.add_argument(
+        "--include-injection-only",
+        action="store_true",
+        help="Include only injection reports.",
+    )
     args = parser.parse_args()
+
+    # Determine injection filter.
+    if args.exclude_injection:
+        injection_filter = "exclude_injection"
+    elif args.include_injection_only:
+        injection_filter = "include_injection_only"
+    elif args.include_injection:
+        injection_filter = "include_injection"
+    else:
+        injection_filter = "include_all"
 
     if Path(args.output).is_absolute():
         print(f"FAIL: --output must be a relative path: {args.output}")
@@ -230,9 +305,12 @@ def main() -> int:
         else:
             reports_data.append((path, read_report(path)))
 
+    reports_data = filter_reports_by_injection(reports_data, injection_filter)
+
     summary = collect_artifacts(reports_data)
     summary["input_mode"] = input_mode
     summary["reports_dir"] = reports_dir_value
+    summary["injection_filter"] = injection_filter
     summary["scanned_paths"] = [rel(path) for path, _ in reports_data]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

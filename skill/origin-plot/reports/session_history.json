@@ -1,0 +1,101 @@
+[
+  {
+    "timestamp_utc": "2026-05-22T05:32:12Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS",
+    "retry_used": false,
+    "attempts": 1,
+    "injection_triggered": false,
+    "final_session_status": "ok",
+    "session_errors_count": 0
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:32:56Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS with session_retry",
+    "retry_used": true,
+    "attempts": 2,
+    "injection_triggered": true,
+    "final_session_status": "ok_after_retry",
+    "session_errors_count": 1
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:33:11Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS with session_retry",
+    "retry_used": true,
+    "attempts": 2,
+    "injection_triggered": true,
+    "final_session_status": "ok_after_retry",
+    "session_errors_count": 1
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:33:29Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS",
+    "retry_used": false,
+    "attempts": 1,
+    "injection_triggered": false,
+    "final_session_status": "ok",
+    "session_errors_count": 0
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:33:36Z",
+    "config": "configs\\fitting\\poly2_fit_config.yaml",
+    "output_basename": "poly2_fit",
+    "status": "PASS",
+    "retry_used": false,
+    "attempts": 1,
+    "injection_triggered": false,
+    "final_session_status": "ok",
+    "session_errors_count": 0
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:38:04Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS with session_retry",
+    "retry_used": true,
+    "attempts": 2,
+    "injection_triggered": true,
+    "final_session_status": "ok_after_retry",
+    "session_errors_count": 1
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:38:19Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS with session_retry",
+    "retry_used": true,
+    "attempts": 2,
+    "injection_triggered": true,
+    "final_session_status": "ok_after_retry",
+    "session_errors_count": 1
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:38:37Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS",
+    "retry_used": false,
+    "attempts": 1,
+    "injection_triggered": false,
+    "final_session_status": "ok",
+    "session_errors_count": 0
+  },
+  {
+    "timestamp_utc": "2026-05-22T05:38:44Z",
+    "config": "configs\\fitting\\poly2_fit_config.yaml",
+    "output_basename": "poly2_fit",
+    "status": "PASS",
+    "retry_used": false,
+    "attempts": 1,
+    "injection_triggered": false,
+    "final_session_status": "ok",
+    "session_errors_count": 0
+  }
+]

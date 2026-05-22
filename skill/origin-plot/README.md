@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.2.
+Current version: v0.8.3.
 
 ## Supported formats
 
@@ -505,6 +505,90 @@ py scripts\origin_plot_from_config.py --config configs\fitting\linear_fit_retry_
 ```
 
 Expected report: `status="PASS with session_retry"`, `attempts=2`, `retry_used=true`, `injection_triggered=true`, `final_session_status="ok_after_retry"`. PNG/PDF/OPJU outputs land under `output/origin_plot_fitting_retry_injected/`. The summary CSV is `reports/fitting_summary_linear_retry_injected.csv` so it does not collide with the regular linear baseline.
+
+## v0.8.3 CLI Retry Smoke and Session History
+
+v0.8.3 adds a CLI-driven retry smoke test, propagates injection metadata through batch and artifact reports, supports injection filtering in the artifact summarizer, and records session history for trend observation.
+
+### CLI retry injection smoke test
+
+```powershell
+py scripts\test_cli_retry_injection.py
+```
+
+This script invokes `origin_plot_from_config.py` via subprocess with `--inject-session-error-once` and the standard linear config, then verifies the report shows `PASS with session_retry`, `retry_used=true`, `attempts=2`, `injection_triggered=true`, `final_session_status="ok_after_retry"`, and that `cli_session_overrides` is non-empty. It also checks PNG/PDF/OPJU existence.
+
+### Aggregate smoke test runner
+
+```powershell
+py scripts\run_smoke_tests.py
+```
+
+Runs `test_session_retry_logic.py` and `test_cli_retry_injection.py` in sequence. Prints `PASS: all smoke tests passed` when both succeed; exits non-zero if any fails.
+
+### Batch session_test_summary
+
+The batch report now includes:
+
+```json
+"session_test_summary": {
+  "jobs_with_retry_used": 0,
+  "jobs_with_injection_triggered": 0,
+  "jobs_with_cli_session_overrides": 0,
+  "final_session_status_counts": {"ok": 2}
+}
+```
+
+This lets higher-level workflows detect whether any batch job ran with injection or CLI overrides without opening individual job reports.
+
+### Artifact summarizer injection filter
+
+```powershell
+py scripts\summarize_fit_artifacts.py --reports-dir reports --exclude-injection
+py scripts\summarize_fit_artifacts.py --reports-dir reports --include-injection-only
+```
+
+- `--exclude-injection`: skips reports where `injection_triggered=true` or `inject_session_error_once=true`.
+- `--include-injection`: explicitly includes injection reports (same as default, but marks `injection_filter="include_injection"` in output).
+- `--include-injection-only`: includes only injection reports.
+- Default: `injection_filter="include_all"`.
+
+The artifact report records `injection_filter` so consumers know how the summary was assembled.
+
+### Session history
+
+Each single-plot run appends an entry to `reports/session_history.json`:
+
+```json
+[
+  {
+    "timestamp_utc": "2026-05-22T05:32:12Z",
+    "config": "configs\\fitting\\linear_fit_config.yaml",
+    "output_basename": "linear_fit",
+    "status": "PASS",
+    "retry_used": false,
+    "attempts": 1,
+    "injection_triggered": false,
+    "final_session_status": "ok",
+    "session_errors_count": 0
+  }
+]
+```
+
+The file grows indefinitely in v0.8.3; a future version may add `max_entries` truncation. If the file is corrupt, the script backs it up as `.bak` and rebuilds from scratch, recording a warning.
+
+The single-plot report includes:
+
+```json
+"session_history": {
+  "path": "reports/session_history.json",
+  "updated": true,
+  "entry_count_after_update": 5,
+  "warnings": []
+}
+```
+
+Streaks of `ok_after_retry` or `failed` entries in the history can flag a degrading Origin installation before it becomes a blocking failure.
 
 ## YAML fields
 

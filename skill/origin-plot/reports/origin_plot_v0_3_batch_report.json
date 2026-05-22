@@ -341,6 +341,14 @@
     "jobs_session_failed": 0,
     "total_session_errors": 0
   },
+  "session_test_summary": {
+    "jobs_with_retry_used": 0,
+    "jobs_with_injection_triggered": 0,
+    "jobs_with_cli_session_overrides": 0,
+    "final_session_status_counts": {
+      "ok": 2
+    }
+  },
   "manual_intervention": {
     "policy": "GUI dialog auto-clicking is intentionally not implemented.",
     "first_run_origin_dialog_caveat": true

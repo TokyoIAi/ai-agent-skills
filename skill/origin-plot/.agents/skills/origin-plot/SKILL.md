@@ -195,6 +195,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.8: fit annotation, fitting summary CSV, and residual CSV plus optional residual plot artifacts on top of v0.7.
 - v0.8.1: Origin COM session stability with retry-on-com-error, fit summary CSV append policy, fitting batch sample, and cross-report artifact summarizer.
 - v0.8.2: deterministic retry-path injection, reusable session profiles, CLI session overrides, reports-dir artifact summarization, and a session retry logic smoke test.
+- v0.8.3: CLI retry injection smoke test, batch session_test_summary, artifact injection filter, session_history.json, and aggregate smoke test runner.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -678,3 +679,49 @@ The test prints `PASS: session retry logic smoke tests ok` on success and exits 
 - `summarize_fit_artifacts.py --reports-dir` populates `input_mode="reports_dir"` and `reports_dir` in the artifact report.
 - `test_session_retry_logic.py` passes without Origin.
 - Reports remain free of absolute paths and `output/` stays git-ignored.
+
+## CLI Retry Injection Smoke Test (v0.8.3)
+
+`scripts/test_cli_retry_injection.py` invokes the main plotting script via subprocess with `--inject-session-error-once` and verifies the retry path works through the CLI route. It checks exit code, report status, `retry_used`, `attempts`, `injection_triggered`, `final_session_status`, `cli_session_overrides`, and output file existence.
+
+## Session Test Summary Contract (v0.8.3)
+
+Batch reports include `session_test_summary`:
+
+```json
+"session_test_summary": {
+  "jobs_with_retry_used": 0,
+  "jobs_with_injection_triggered": 0,
+  "jobs_with_cli_session_overrides": 0,
+  "final_session_status_counts": {"ok": 2}
+}
+```
+
+This aggregates per-job `origin_session` fields so higher-level workflows can detect test-mode runs without inspecting each job.
+
+## Artifact Injection Filter (v0.8.3)
+
+`summarize_fit_artifacts.py` accepts:
+
+- `--exclude-injection`: skip reports with `injection_triggered=true` or `inject_session_error_once=true`.
+- `--include-injection`: explicitly include (same as default, marks filter in output).
+- `--include-injection-only`: include only injection reports.
+
+The artifact report records `injection_filter` (`include_all`, `exclude_injection`, `include_injection`, or `include_injection_only`).
+
+## Session History Workflow (v0.8.3)
+
+Each single-plot run appends to `reports/session_history.json`. The file is a JSON array of entries with `timestamp_utc`, `config`, `output_basename`, `status`, `retry_used`, `attempts`, `injection_triggered`, `final_session_status`, and `session_errors_count`.
+
+If the file is corrupt, the script backs it up as `.json.bak` and rebuilds. The single-plot report includes a `session_history` block with `path`, `updated`, `entry_count_after_update`, and `warnings`.
+
+## v0.8.3 Acceptance Criteria
+
+- `test_cli_retry_injection.py` passes: exit code 0, report shows `PASS with session_retry`, `retry_used=true`, `attempts=2`, `injection_triggered=true`, `final_session_status="ok_after_retry"`, `cli_session_overrides` non-empty.
+- `run_smoke_tests.py` passes both sub-tests.
+- Batch report includes `session_test_summary` with correct counts.
+- `summarize_fit_artifacts.py --reports-dir reports --exclude-injection` produces a clean report with `injection_filter="exclude_injection"` and `missing_artifacts=0`.
+- `reports/session_history.json` exists and contains at least one entry with `injection_triggered=true`.
+- Single-plot report includes `session_history` block with `updated=true`.
+- All reports remain free of absolute paths.
+- `output/` stays git-ignored.

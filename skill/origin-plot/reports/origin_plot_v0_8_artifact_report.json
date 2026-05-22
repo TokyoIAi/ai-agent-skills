@@ -1,17 +1,11 @@
 {
   "status": "PASS",
-  "reports_scanned": 3,
+  "reports_scanned": 2,
   "reports_unreadable": [],
-  "fit_models_seen": 3,
-  "annotations_requested": 3,
-  "annotations_applied": 3,
+  "fit_models_seen": 2,
+  "annotations_requested": 2,
+  "annotations_applied": 2,
   "summary_csv_outputs": [
-    {
-      "path": "reports\\fitting_summary_linear_retry_injected.csv",
-      "exists": true,
-      "rows_written": 1,
-      "append": false
-    },
     {
       "path": "reports\\fitting_summary_linear.csv",
       "exists": true,
@@ -28,12 +22,6 @@
   "residual_csv_outputs": [
     {
       "fit_name": "linear_fit_y",
-      "path": "reports\\residuals\\linear_fit_retry_injected_linear_fit_y_residuals.csv",
-      "exists": true,
-      "rows_written": 6
-    },
-    {
-      "fit_name": "linear_fit_y",
       "path": "reports\\residuals\\linear_fit_linear_fit_y_residuals.csv",
       "exists": true,
       "rows_written": 6
@@ -46,13 +34,6 @@
     }
   ],
   "residual_plot_outputs": [
-    {
-      "fit_name": "linear_fit_y",
-      "png": "output\\origin_plot_residuals\\linear_fit_retry_injected_linear_fit_y_residual.png",
-      "png_exists": true,
-      "pdf": "output\\origin_plot_residuals\\linear_fit_retry_injected_linear_fit_y_residual.pdf",
-      "pdf_exists": true
-    },
     {
       "fit_name": "linear_fit_y",
       "png": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.png",
@@ -72,8 +53,8 @@
   "missing_artifacts": [],
   "input_mode": "reports_dir",
   "reports_dir": "reports",
+  "injection_filter": "exclude_injection",
   "scanned_paths": [
-    "reports\\origin_plot_v0_2_report.json",
     "reports\\origin_plot_v0_3_batch_report.json",
     "reports\\origin_plot_v0_4_scan_report.json"
   ]

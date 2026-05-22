@@ -1,6 +1,6 @@
 {
   "status": "PASS with session_retry",
-  "config_path": "configs\\fitting\\linear_fit_retry_injected_config.yaml",
+  "config_path": "configs\\fitting\\linear_fit_config.yaml",
   "input_file": "data\\fit_sample.csv",
   "detected_format": "csv",
   "row_count_raw": 6,
@@ -12,19 +12,19 @@
   "graph_type": "line_symbol",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_fitting_retry_injected\\linear_fit_retry_injected.png",
+      "path": "output\\origin_plot_fitting\\linear_fit.png",
       "exists": true,
       "size_bytes": 17585
     },
     "pdf": {
-      "path": "output\\origin_plot_fitting_retry_injected\\linear_fit_retry_injected.pdf",
+      "path": "output\\origin_plot_fitting\\linear_fit.pdf",
       "exists": true,
       "size_bytes": 18425
     },
     "opju": {
-      "path": "output\\origin_plot_fitting_retry_injected\\linear_fit_retry_injected.opju",
+      "path": "output\\origin_plot_fitting\\linear_fit.opju",
       "exists": true,
-      "size_bytes": 28611
+      "size_bytes": 28566
     }
   },
   "style": {
@@ -95,7 +95,7 @@
   },
   "fitting_summary_csv": {
     "requested": true,
-    "path": "reports\\fitting_summary_linear_retry_injected.csv",
+    "path": "reports\\fitting_summary_linear.csv",
     "exists": true,
     "rows_written": 1,
     "append": false,
@@ -106,7 +106,7 @@
     "csv_outputs": [
       {
         "fit_name": "linear_fit_y",
-        "path": "reports\\residuals\\linear_fit_retry_injected_linear_fit_y_residuals.csv",
+        "path": "reports\\residuals\\linear_fit_linear_fit_y_residuals.csv",
         "exists": true,
         "rows_written": 6,
         "size_bytes": 322
@@ -116,8 +116,8 @@
     "residual_plot_outputs": [
       {
         "fit_name": "linear_fit_y",
-        "png": "output\\origin_plot_residuals\\linear_fit_retry_injected_linear_fit_y_residual.png",
-        "pdf": "output\\origin_plot_residuals\\linear_fit_retry_injected_linear_fit_y_residual.pdf",
+        "png": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.png",
+        "pdf": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.pdf",
         "png_exists": true,
         "pdf_exists": true
       }
@@ -130,15 +130,14 @@
     "kill_stale_origin_before_retry": false,
     "retry_delay_seconds": 1.0,
     "inject_session_error_once": true,
-    "session_profile": "configs\\sessions\\test_retry_session.yaml",
-    "session_profile_settings": {
-      "retry_on_com_error": true,
+    "session_profile": null,
+    "session_profile_settings": {},
+    "cli_session_overrides": {
       "max_retries": 1,
+      "retry_delay_seconds": 1.0,
       "kill_stale_origin_before_retry": false,
-      "retry_delay_seconds": 1,
       "inject_session_error_once": true
     },
-    "cli_session_overrides": {},
     "effective_settings": {
       "retry_on_com_error": true,
       "max_retries": 1,
@@ -162,5 +161,11 @@
     "notes": "User reported one manual OK during initial validation. A later PowerShell rerun completed without a popup. GUI dialog auto-clicking is intentionally not implemented."
   },
   "warnings": [],
-  "errors": []
+  "errors": [],
+  "session_history": {
+    "path": "reports\\session_history.json",
+    "updated": true,
+    "entry_count_after_update": 7,
+    "warnings": []
+  }
 }
