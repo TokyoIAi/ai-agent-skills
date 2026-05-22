@@ -6,7 +6,7 @@ A personal collection of reusable AI Agent Skills for Codex, Claude Code, and lo
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | skill/origin-plot | v0.5 Style Profiles + Export Profiles | Config-based, batch, directory-scan, and style-profiled Origin / OriginPro plotting with CSV/XLSX/TSV/TXT input. |
+| origin-plot | skill/origin-plot | v0.6 Error Bar MVP | Config-based, batch, directory-scan, style-profiled, and error-bar-capable Origin / OriginPro plotting with CSV/XLSX/TSV/TXT input. |
 
 ## Repository layout
 

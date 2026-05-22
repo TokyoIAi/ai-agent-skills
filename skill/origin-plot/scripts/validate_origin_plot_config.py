@@ -7,7 +7,7 @@ from typing import Any
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol"}
+SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 
@@ -71,6 +71,47 @@ def effective_export_settings(config: dict[str, Any], style_profile: dict[str, A
     except (TypeError, ValueError):
         fail("Effective png_width must be an integer.")
     return settings
+
+
+def validate_errorbar_columns(config: dict[str, Any], df: Any, y_columns: list[str]) -> tuple[dict[str, str], str | None, list[str]]:
+    warnings: list[str] = []
+    y_error_columns = config.get("y_error_columns") or {}
+    x_error_column = config.get("x_error_column")
+    graph_type = str(config.get("graph_type", "")).lower()
+
+    if graph_type == "errorbar" and not y_error_columns:
+        warnings.append("graph_type=errorbar but y_error_columns is missing; plotting may downgrade to ordinary plot.")
+        y_error_columns = {}
+    if y_error_columns and not isinstance(y_error_columns, dict):
+        fail("y_error_columns must be a mapping from Y column to error column.")
+
+    normalized_y_errors: dict[str, str] = {}
+    for y_col, err_col in y_error_columns.items():
+        y_col = str(y_col)
+        err_col = str(err_col)
+        if y_col not in y_columns:
+            fail(f"y_error_columns key must be one of y_columns: {y_col}")
+        if err_col not in df.columns:
+            fail(f"y error column does not exist: {err_col}")
+        values = __import__("pandas").to_numeric(df[err_col], errors="coerce")
+        if values.dropna().empty:
+            fail(f"y error column is not numeric: {err_col}")
+        if (values.dropna() < 0).any():
+            fail(f"y error column contains negative values: {err_col}")
+        normalized_y_errors[y_col] = err_col
+
+    normalized_x_error = None
+    if x_error_column not in (None, ""):
+        normalized_x_error = str(x_error_column)
+        if normalized_x_error not in df.columns:
+            fail(f"x_error_column does not exist: {normalized_x_error}")
+        values = __import__("pandas").to_numeric(df[normalized_x_error], errors="coerce")
+        if values.dropna().empty:
+            fail(f"x_error_column is not numeric: {normalized_x_error}")
+        if (values.dropna() < 0).any():
+            fail(f"x_error_column contains negative values: {normalized_x_error}")
+
+    return normalized_y_errors, normalized_x_error, warnings
 
 
 def detect_format(input_path: Path, input_format: str | None) -> str:
@@ -151,6 +192,7 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
     valid = selected.dropna()
     if len(valid) < 2:
         fail("Selected x/y columns must contain at least 2 valid numeric rows.")
+    y_error_columns, x_error_column, errorbar_warnings = validate_errorbar_columns(config, df, y_columns)
 
     summary = {
         "input_file": str(config["input_file"]),
@@ -163,6 +205,9 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         "style_profile": style_profile_path,
         "export_profile": export_profile_path,
         "effective_export_settings": export_settings,
+        "y_error_columns": y_error_columns,
+        "x_error_column": x_error_column,
+        "errorbar_validation_warnings": errorbar_warnings,
         "output_dir": str(config["output_dir"]),
         "output_basename": str(config["output_basename"]),
     }

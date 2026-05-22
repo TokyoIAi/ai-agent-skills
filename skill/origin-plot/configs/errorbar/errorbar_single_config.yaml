@@ -1,0 +1,26 @@
+input_file: "data/errorbar_sample.csv"
+input_format: "auto"
+sheet_name: null
+
+x_column: "x"
+y_columns:
+  - "y"
+
+y_error_columns:
+  y: "y_err"
+
+x_error_column: null
+
+graph_type: "errorbar"
+
+graph_title: "Error Bar Plot v0.6"
+x_title: "X"
+y_title: "Y"
+
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
+output_dir: "output/origin_plot_errorbar"
+output_basename: "errorbar_single"
+
+show_origin: true

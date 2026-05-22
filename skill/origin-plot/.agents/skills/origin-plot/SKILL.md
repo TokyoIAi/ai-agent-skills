@@ -190,6 +190,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.3: batch plotting MVP using `scripts\origin_batch_plot.py` with a batch YAML listing multiple single-plot configs.
 - v0.4: directory scan MVP using `scripts\generate_batch_configs_from_dir.py` to create single-plot configs and a generated batch config from data files.
 - v0.5: style and export profile MVP using reusable YAML profiles under `configs\styles\` and `configs\exports\`.
+- v0.6: error bar MVP using `graph_type: errorbar`, `y_error_columns`, and optional `x_error_column`.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -310,3 +311,62 @@ Apply only lightweight Origin styling through `originpro`. If title, legend, res
 - Batch report includes `style_summary`.
 - Generated scan configs include style and export profile references.
 - Requested PNG/PDF/OPJU outputs still exist.
+
+## v0.6 Error Bar Workflow
+
+Use v0.6 when the user provides uncertainty/error columns for one or more Y series. Validate first, then plot:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\errorbar\errorbar_single_config.yaml
+py scripts\origin_plot_from_config.py --config configs\errorbar\errorbar_single_config.yaml
+```
+
+For multi-series error bars, map each Y column to its own error column.
+
+## Error Bar YAML Schema
+
+```yaml
+graph_type: "errorbar"
+y_columns:
+  - "y1"
+  - "y2"
+y_error_columns:
+  y1: "y1_err"
+  y2: "y2_err"
+x_error_column: null
+```
+
+`y_error_columns` is a mapping whose keys must be listed in `y_columns`. `x_error_column` is optional.
+
+## Error Bar Validation Rules
+
+- `graph_type` may be `errorbar`.
+- Every `y_error_columns` key must belong to `y_columns`.
+- Every referenced error column must exist.
+- Error columns must be numeric or numeric-convertible.
+- Error values must be non-negative.
+- If `graph_type: errorbar` has no `y_error_columns`, allow ordinary plot fallback but record a warning.
+
+## Error Bar Report Contract
+
+Single-plot reports include:
+
+```json
+"errorbar": {
+  "requested": true,
+  "applied": true,
+  "x_error_column": null,
+  "y_error_columns": {},
+  "warnings": []
+}
+```
+
+Batch reports include `errorbar_summary` with counts for requesting jobs, applied jobs, and jobs with warnings.
+
+## v0.6 Acceptance Criteria
+
+- Error bar configs validate without calling Origin.
+- Single-series and multi-series error bar configs generate requested PNG/PDF/OPJU files.
+- `errorbar.applied` is true when Origin accepts the error-bar columns.
+- If Origin rejects error bars but exports ordinary plot files, mark `PASS with warnings`.
+- Reports use relative paths and do not claim GUI automation.

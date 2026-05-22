@@ -1,0 +1,28 @@
+input_file: "data/errorbar_multi_sample.csv"
+input_format: "auto"
+sheet_name: null
+
+x_column: "x"
+y_columns:
+  - "y1"
+  - "y2"
+
+y_error_columns:
+  y1: "y1_err"
+  y2: "y2_err"
+
+x_error_column: null
+
+graph_type: "errorbar"
+
+graph_title: "Multi-series Error Bar Plot v0.6"
+x_title: "X"
+y_title: "Y"
+
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
+output_dir: "output/origin_plot_errorbar_multi"
+output_basename: "errorbar_multi"
+
+show_origin: true

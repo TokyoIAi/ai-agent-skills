@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.5.
+Current version: v0.6.
 
 ## Supported formats
 
@@ -146,6 +146,41 @@ The style layer is best-effort. Stable settings such as title, axis titles, lege
 
 This skill still does not use GUI automation, screenshot recognition, mouse-coordinate clicking, or auto-clicking of Origin dialogs.
 
+## v0.6 Error Bar MVP
+
+Error bar plots use `graph_type: errorbar` and map each Y series to its error column:
+
+```yaml
+y_columns:
+  - "y1"
+  - "y2"
+
+y_error_columns:
+  y1: "y1_err"
+  y2: "y2_err"
+
+x_error_column: null
+graph_type: "errorbar"
+```
+
+Single-series example:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\errorbar\errorbar_single_config.yaml
+py scripts\origin_plot_from_config.py --config configs\errorbar\errorbar_single_config.yaml
+```
+
+Multi-series example:
+
+```powershell
+py scripts\validate_origin_plot_config.py --config configs\errorbar\errorbar_multi_config.yaml
+py scripts\origin_plot_from_config.py --config configs\errorbar\errorbar_multi_config.yaml
+```
+
+`x_error_column` is optional. When present, it must name a numeric, non-negative column.
+
+Error bar application is best-effort through `originpro`. If Origin rejects the error-bar call, the script records `errorbar.warnings`, falls back to ordinary plotting when possible, and still exports PNG/PDF/OPJU. In that case the result is `PASS with warnings`, not a false claim that error bars were applied.
+
 ## YAML fields
 
 - `input_file`: input data path, usually relative to this subproject.
@@ -162,6 +197,8 @@ This skill still does not use GUI automation, screenshot recognition, mouse-coor
 - `png_width`: PNG export width in pixels.
 - `style_profile`: optional path to a reusable style YAML.
 - `export_profile`: optional path to a reusable export YAML.
+- `y_error_columns`: optional mapping from Y columns to Y error columns.
+- `x_error_column`: optional X error column.
 
 ## Outputs
 

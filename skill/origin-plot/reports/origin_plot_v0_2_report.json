@@ -1,7 +1,7 @@
 {
   "status": "PASS",
-  "config_path": "configs\\origin_plot_config.yaml",
-  "input_file": "data\\sample.csv",
+  "config_path": "configs\\errorbar\\errorbar_multi_config.yaml",
+  "input_file": "data\\errorbar_multi_sample.csv",
   "detected_format": "csv",
   "row_count_raw": 6,
   "row_count_used": 6,
@@ -10,22 +10,22 @@
     "y1",
     "y2"
   ],
-  "graph_type": "line",
+  "graph_type": "errorbar",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_config\\sample_origin_plot.png",
+      "path": "output\\origin_plot_errorbar_multi\\errorbar_multi.png",
       "exists": true,
-      "size_bytes": 15738
+      "size_bytes": 16622
     },
     "pdf": {
-      "path": "output\\origin_plot_config\\sample_origin_plot.pdf",
+      "path": "output\\origin_plot_errorbar_multi\\errorbar_multi.pdf",
       "exists": true,
-      "size_bytes": 7954
+      "size_bytes": 8733
     },
     "opju": {
-      "path": "output\\origin_plot_config\\sample_origin_plot.opju",
+      "path": "output\\origin_plot_errorbar_multi\\errorbar_multi.opju",
       "exists": true,
-      "size_bytes": 26005
+      "size_bytes": 27098
     }
   },
   "style": {
@@ -49,6 +49,16 @@
       "graph.rescale"
     ],
     "style_warnings": []
+  },
+  "errorbar": {
+    "requested": true,
+    "applied": true,
+    "x_error_column": null,
+    "y_error_columns": {
+      "y1": "y1_err",
+      "y2": "y2_err"
+    },
+    "warnings": []
   },
   "manual_intervention": {
     "user_reported_manual_ok": true,

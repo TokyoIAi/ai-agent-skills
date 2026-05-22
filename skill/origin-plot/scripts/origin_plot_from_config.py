@@ -10,7 +10,7 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
-SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol"}
+SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 MANUAL_INTERVENTION = {
@@ -150,6 +150,25 @@ def requested_outputs(config: dict[str, Any], output_dir: Path, basename: str) -
     }
 
 
+def normalize_errorbar_config(config: dict[str, Any], y_columns: list[str]) -> tuple[dict[str, str], str | None, list[str]]:
+    warnings: list[str] = []
+    y_error_columns = config.get("y_error_columns") or {}
+    x_error_column = config.get("x_error_column")
+    if str(config.get("graph_type", "")).lower() == "errorbar" and not y_error_columns:
+        warnings.append("graph_type=errorbar but y_error_columns is missing; ordinary plot fallback is expected.")
+    if y_error_columns and not isinstance(y_error_columns, dict):
+        raise ValueError("y_error_columns must be a mapping from Y column to error column.")
+
+    normalized_y_errors: dict[str, str] = {}
+    for y_col, err_col in y_error_columns.items():
+        y_col = str(y_col)
+        err_col = str(err_col)
+        if y_col not in y_columns:
+            raise ValueError(f"y_error_columns key must be one of y_columns: {y_col}")
+        normalized_y_errors[y_col] = err_col
+    return normalized_y_errors, str(x_error_column) if x_error_column not in (None, "") else None, warnings
+
+
 def output_status(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {"path": None, "exists": False, "size_bytes": 0}
@@ -173,6 +192,7 @@ def build_report(
     graph_type: str | None,
     outputs: dict[str, Path | None],
     style: dict[str, Any],
+    errorbar: dict[str, Any],
     warnings: list[str],
     errors: list[str],
 ) -> dict[str, Any]:
@@ -188,6 +208,7 @@ def build_report(
         "graph_type": graph_type,
         "outputs": {name: output_status(path) for name, path in outputs.items()},
         "style": style,
+        "errorbar": errorbar,
         "manual_intervention": MANUAL_INTERVENTION,
         "warnings": warnings,
         "errors": errors,
@@ -229,16 +250,28 @@ def prepare_data(config: dict[str, Any]):
     if missing:
         raise ValueError(f"Missing column(s): {missing}")
 
-    plot_df = df[[x_column, *y_columns]].copy()
+    y_error_columns, x_error_column, errorbar_warnings = normalize_errorbar_config(config, y_columns)
+    extra_columns = list(y_error_columns.values())
+    if x_error_column:
+        extra_columns.append(x_error_column)
+    missing_error_columns = [col for col in extra_columns if col not in df.columns]
+    if missing_error_columns:
+        raise ValueError(f"Missing error column(s): {missing_error_columns}")
+
+    plot_columns = list(dict.fromkeys([x_column, *y_columns, *extra_columns]))
+    plot_df = df[plot_columns].copy()
     for col in plot_df.columns:
         plot_df[col] = pd.to_numeric(plot_df[col], errors="coerce")
+    for col in extra_columns:
+        if (plot_df[col].dropna() < 0).any():
+            raise ValueError(f"Error column contains negative values: {col}")
     row_count_raw = int(len(plot_df))
     plot_df = plot_df.dropna()
     row_count_used = int(len(plot_df))
     dropped = row_count_raw - row_count_used
     if row_count_used < 2:
         raise ValueError("Selected x/y columns must contain at least 2 valid numeric rows.")
-    return input_path, detected_format, df, plot_df, x_column, y_columns, graph_type, dropped
+    return input_path, detected_format, df, plot_df, x_column, y_columns, graph_type, dropped, y_error_columns, x_error_column, errorbar_warnings
 
 
 def graph_template_and_plot_type(graph_type: str, warnings: list[str]) -> tuple[str, str]:
@@ -247,6 +280,8 @@ def graph_template_and_plot_type(graph_type: str, warnings: list[str]) -> tuple[
     if graph_type == "scatter":
         return "scatter", "s"
     if graph_type == "line_symbol":
+        return "line", "y"
+    if graph_type == "errorbar":
         return "line", "y"
     warnings.append(f"Unsupported graph_type {graph_type}; fallback to line.")
     return "line", "l"
@@ -268,6 +303,10 @@ def apply_plot_style(plot: Any, settings: dict[str, Any], style_info: dict[str, 
             style_info["applied_style_features"].append("line.symbol_size")
         except Exception as exc:  # noqa: BLE001 - style support varies by Origin plot type
             style_info["style_warnings"].append(f"Could not apply line.symbol_size: {type(exc).__name__}: {exc}")
+
+
+def column_index_map(plot_df: Any) -> dict[str, int]:
+    return {str(column): index for index, column in enumerate(plot_df.columns)}
 
 
 def main() -> int:
@@ -294,12 +333,38 @@ def main() -> int:
         "style_warnings": [],
     }
     settings: dict[str, Any] = style_settings({})
+    errorbar_info: dict[str, Any] = {
+        "requested": False,
+        "applied": False,
+        "x_error_column": None,
+        "y_error_columns": {},
+        "warnings": [],
+    }
     op = None
 
     try:
         config = load_yaml(config_path)
         effective_config, settings, style_info = build_effective_config(config)
-        input_path, detected_format, raw_df, plot_df, x_column, y_columns, graph_type, dropped = prepare_data(effective_config)
+        (
+            input_path,
+            detected_format,
+            raw_df,
+            plot_df,
+            x_column,
+            y_columns,
+            graph_type,
+            dropped,
+            y_error_columns,
+            x_error_column,
+            errorbar_warnings,
+        ) = prepare_data(effective_config)
+        errorbar_info = {
+            "requested": graph_type == "errorbar",
+            "applied": False,
+            "x_error_column": x_error_column,
+            "y_error_columns": y_error_columns,
+            "warnings": errorbar_warnings,
+        }
         row_count_raw = int(len(raw_df))
         row_count_used = int(len(plot_df))
         if dropped:
@@ -339,11 +404,31 @@ def main() -> int:
             plot_type = "l"
 
         layer = graph[0]
-        for y_index, y_col in enumerate(y_columns, start=1):
-            plot = layer.add_plot(wks, coly=y_index, colx=0, type=plot_type)
+        col_indices = column_index_map(plot_df)
+        errorbar_applied_count = 0
+        for y_col in y_columns:
+            colyerr = col_indices.get(y_error_columns.get(y_col, ""), -1)
+            colxerr = col_indices.get(x_error_column, -1) if x_error_column else -1
+            try:
+                plot = layer.add_plot(
+                    wks,
+                    coly=col_indices[y_col],
+                    colx=col_indices[x_column],
+                    type=plot_type,
+                    colyerr=colyerr,
+                    colxerr=colxerr,
+                )
+                if graph_type == "errorbar" and colyerr != -1 and plot is not None:
+                    errorbar_applied_count += 1
+            except Exception as exc:  # noqa: BLE001 - fallback to ordinary plot and report honestly
+                if graph_type == "errorbar":
+                    errorbar_info["warnings"].append(
+                        f"Could not create errorbar plot for {y_col}; fallback to ordinary plot: {type(exc).__name__}: {exc}"
+                    )
+                plot = layer.add_plot(wks, coly=col_indices[y_col], colx=col_indices[x_column], type=plot_type)
             if plot is None and plot_type != "l":
                 warnings.append(f"{graph_type} plot type was not accepted for {y_col}; fallback to line.")
-                plot = layer.add_plot(wks, coly=y_index, colx=0, type="l")
+                plot = layer.add_plot(wks, coly=col_indices[y_col], colx=col_indices[x_column], type="l")
             if plot is None:
                 raise RuntimeError(f"Origin did not create plot for Y column: {y_col}")
             try:
@@ -351,6 +436,16 @@ def main() -> int:
             except Exception:
                 pass
             apply_plot_style(plot, settings, style_info)
+
+        if graph_type == "errorbar":
+            expected_errorbars = len(y_error_columns)
+            errorbar_info["applied"] = expected_errorbars > 0 and errorbar_applied_count == expected_errorbars
+            if expected_errorbars == 0:
+                errorbar_info["warnings"].append("No y_error_columns provided; generated ordinary plot output.")
+            elif not errorbar_info["applied"]:
+                errorbar_info["warnings"].append(
+                    f"Only applied {errorbar_applied_count} of {expected_errorbars} requested Y error column(s)."
+                )
 
         title = str(effective_config.get("graph_title") or input_path.name)
         if settings.get("title_enabled", True):
@@ -398,6 +493,8 @@ def main() -> int:
 
         missing = [name for name, path in outputs.items() if path is not None and not path.exists()]
         status = "PASS" if not missing else "PARTIAL PASS"
+        if status == "PASS" and errorbar_info["requested"] and not errorbar_info["applied"]:
+            status = "PASS with warnings"
         if missing:
             errors.append(f"Missing requested outputs: {missing}")
             print("FAIL: missing requested Origin outputs:")
@@ -418,11 +515,12 @@ def main() -> int:
             graph_type,
             outputs,
             style_info,
+            errorbar_info,
             warnings,
             errors,
         )
         save_report(report)
-        return 0 if status == "PASS" else 1
+        return 0 if status in {"PASS", "PASS with warnings"} else 1
 
     except Exception as exc:  # noqa: BLE001 - print full traceback for automation failures
         errors.append(f"{type(exc).__name__}: {exc}")
@@ -439,6 +537,7 @@ def main() -> int:
             graph_type,
             outputs,
             style_info,
+            errorbar_info,
             warnings,
             errors,
         )
