@@ -1,0 +1,24 @@
+input_file: "data/sample.csv"
+input_format: "auto"
+sheet_name: null
+
+x_column: "x"
+y_columns:
+  - "y1"
+  - "y2"
+
+graph_type: "line_symbol"
+
+graph_title: "Origin Automated Line+Symbol Plot v0.3"
+x_title: "X"
+y_title: "Y"
+
+output_dir: "output/origin_plot_batch/sample_line_symbol"
+output_basename: "sample_line_symbol"
+
+show_origin: true
+save_opju: true
+export_png: true
+export_pdf: true
+
+png_width: 1400

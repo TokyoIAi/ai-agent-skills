@@ -1,0 +1,86 @@
+{
+  "status": "PASS",
+  "batch_name": "sample_batch_v0_3",
+  "job_count": 3,
+  "passed_count": 3,
+  "failed_count": 0,
+  "continue_on_error": true,
+  "jobs": [
+    {
+      "name": "sample_line",
+      "config": "configs\\origin_plot_config.yaml",
+      "status": "PASS",
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_config\\sample_origin_plot.png",
+          "exists": true,
+          "size_bytes": 15738
+        },
+        "pdf": {
+          "path": "output\\origin_plot_config\\sample_origin_plot.pdf",
+          "exists": true,
+          "size_bytes": 7954
+        },
+        "opju": {
+          "path": "output\\origin_plot_config\\sample_origin_plot.opju",
+          "exists": true,
+          "size_bytes": 27308
+        }
+      },
+      "warnings": [],
+      "error": null
+    },
+    {
+      "name": "sample_scatter",
+      "config": "configs\\batch\\sample_scatter_config.yaml",
+      "status": "PASS",
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_batch\\sample_scatter\\sample_scatter.png",
+          "exists": true,
+          "size_bytes": 12276
+        },
+        "pdf": {
+          "path": "output\\origin_plot_batch\\sample_scatter\\sample_scatter.pdf",
+          "exists": true,
+          "size_bytes": 8153
+        },
+        "opju": {
+          "path": "output\\origin_plot_batch\\sample_scatter\\sample_scatter.opju",
+          "exists": true,
+          "size_bytes": 25672
+        }
+      },
+      "warnings": [],
+      "error": null
+    },
+    {
+      "name": "sample_line_symbol",
+      "config": "configs\\batch\\sample_line_symbol_config.yaml",
+      "status": "PASS",
+      "outputs": {
+        "png": {
+          "path": "output\\origin_plot_batch\\sample_line_symbol\\sample_line_symbol.png",
+          "exists": true,
+          "size_bytes": 15976
+        },
+        "pdf": {
+          "path": "output\\origin_plot_batch\\sample_line_symbol\\sample_line_symbol.pdf",
+          "exists": true,
+          "size_bytes": 8270
+        },
+        "opju": {
+          "path": "output\\origin_plot_batch\\sample_line_symbol\\sample_line_symbol.opju",
+          "exists": true,
+          "size_bytes": 27793
+        }
+      },
+      "warnings": [],
+      "error": null
+    }
+  ],
+  "manual_intervention": {
+    "policy": "GUI dialog auto-clicking is intentionally not implemented.",
+    "first_run_origin_dialog_caveat": true
+  }
+}

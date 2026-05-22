@@ -1,0 +1,12 @@
+batch_name: "sample_batch_v0_3"
+continue_on_error: true
+
+jobs:
+  - name: "sample_line"
+    config: "configs/origin_plot_config.yaml"
+
+  - name: "sample_scatter"
+    config: "configs/batch/sample_scatter_config.yaml"
+
+  - name: "sample_line_symbol"
+    config: "configs/batch/sample_line_symbol_config.yaml"

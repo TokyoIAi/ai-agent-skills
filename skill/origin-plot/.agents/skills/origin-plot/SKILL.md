@@ -187,3 +187,37 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.1: sample CSV template plot using `.agents\skills\origin-plot\scripts\plot_origin_template.py`.
 - v0.2: YAML-configured plotting for CSV/XLSX/TSV/TXT input using `scripts\validate_origin_plot_config.py` and `scripts\origin_plot_from_config.py`.
 - v0.2.1: documents a first-run manual Origin dialog caveat; subsequent PowerShell rerun completed without popup.
+- v0.3: batch plotting MVP using `scripts\origin_batch_plot.py` with a batch YAML listing multiple single-plot configs.
+
+## v0.3 Batch Plotting Workflow
+
+Use v0.3 when the user wants to run several configured Origin plots in one command. Run from `skill/origin-plot/`:
+
+```powershell
+py scripts\origin_batch_plot.py --batch-config configs\batch\batch_plot_config.yaml
+```
+
+The batch script validates each single-plot config, runs `origin_plot_from_config.py`, records each job result, and writes `reports\origin_plot_v0_3_batch_report.json`. It uses the existing single-plot workflow so v0.1/v0.2 behavior stays intact.
+
+## Batch YAML Schema
+
+Required batch fields:
+
+- `batch_name`: name for the batch report.
+- `continue_on_error`: true to continue after a failed job, false to stop after first failure.
+- `jobs`: non-empty list.
+- `jobs[].name`: report-friendly job name.
+- `jobs[].config`: path to a v0.2 single-plot YAML config.
+
+## Batch Acceptance Criteria
+
+- At least three jobs are listed for the sample MVP.
+- Every job has a valid config path.
+- Each requested job output is checked by real file existence and size.
+- The batch report uses relative paths.
+- Batch status is `PASS` only when every job passes.
+- Scatter or line-symbol fallback is acceptable only when warnings are recorded.
+
+## Failure Handling for Batch Jobs
+
+Do not let one failed job prevent report creation. If `continue_on_error` is true, record the failed job and continue. If it is false, stop after the failed job but still write the batch report. Never use GUI automation to clear Origin dialogs; ask the user to complete first-run or license initialization manually.

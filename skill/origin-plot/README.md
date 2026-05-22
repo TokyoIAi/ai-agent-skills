@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.2.1.
+Current version: v0.3.
 
 ## Supported formats
 
@@ -53,6 +53,38 @@ Generate the plot:
 py scripts\origin_plot_from_config.py --config configs\origin_plot_config.yaml
 ```
 
+## v0.3 Batch Plotting
+
+Batch plotting reads a batch YAML file that lists multiple single-plot YAML configs.
+
+Default batch config:
+
+```text
+configs/batch/batch_plot_config.yaml
+```
+
+Run from `skill/origin-plot/`:
+
+```powershell
+py scripts\origin_batch_plot.py --batch-config configs\batch\batch_plot_config.yaml
+```
+
+Batch YAML fields:
+
+- `batch_name`: name written to the batch report.
+- `continue_on_error`: when true, a failed job is recorded and later jobs still run.
+- `jobs`: non-empty list of jobs.
+- `jobs[].name`: job name in the report.
+- `jobs[].config`: path to a single-plot config YAML.
+
+The batch report is written to:
+
+```text
+reports/origin_plot_v0_3_batch_report.json
+```
+
+Single job failures do not cause the batch script to exit without a report. The batch status is `PASS` when all jobs pass, `PARTIAL PASS` when some pass and some fail, and `FAIL` when all jobs fail.
+
 ## YAML fields
 
 - `input_file`: input data path, usually relative to this subproject.
@@ -76,6 +108,7 @@ The v0.2 script writes requested outputs such as:
 - `output/origin_plot_config/sample_origin_plot.pdf`
 - `output/origin_plot_config/sample_origin_plot.opju`
 - `reports/origin_plot_v0_2_report.json`
+- `reports/origin_plot_v0_3_batch_report.json`
 
 `output/` is generated and ignored by Git. The report uses relative paths so it can be committed when useful.
 
