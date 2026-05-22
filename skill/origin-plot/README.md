@@ -93,6 +93,21 @@ git-ignored and must never be committed.**
 | `archive/v0_8_7_full_stack/` | Documentation anchor for the v0.8.7 surface that v1.0 keeps verbatim. |
 | `reports/report_package/` | Primary deliverable after every run. |
 
+## Scope and non-goals
+
+- [`archive/v1_0_scope_clarification.md`](archive/v1_0_scope_clarification.md)
+  records what v1.0-core-refactor changed (public surface, contracts) and
+  what it deliberately did **not** change (`core/` is still a façade over
+  the verified v0.8.7 implementation in `scripts/`).
+- [`contracts/non_goals.md`](contracts/non_goals.md) lists the hard
+  non-goals (OCR, smart inference, sheet auto-detection, etc.) and the
+  tier-B features (grouped, multi-panel, faceted, template reuse) that
+  may land later **only** under explicit canonical contracts.
+- [`archive/v0_9_smart_input_reference.md`](archive/v0_9_smart_input_reference.md)
+  documents where the v0.9 smart-input experiment lives now (immutable
+  tag plus archive branch) and how to inspect it without dragging it
+  back into the v1.0 mainline.
+
 ## Acceptance
 
 Run all three example configs plus a hygiene scan:

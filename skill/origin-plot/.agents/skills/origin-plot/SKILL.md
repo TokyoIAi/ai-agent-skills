@@ -27,6 +27,17 @@ canonical data and YAML configs. It is **not** a data understanding tool.
 - v0.9 smart-input experiments are intentionally not part of v1.0; Codex
   owns that responsibility.
 
+For the full landing record:
+
+- `archive/v1_0_scope_clarification.md` documents what v1.0 actually
+  changed: it is a public surface refactor; `core/` is still a façade
+  over the verified v0.8.7 implementation in `scripts/`. Full
+  internalization belongs to v1.1+.
+- `contracts/non_goals.md` lists hard non-goals and the tier-B features
+  that may land later under explicit canonical contracts only.
+- `archive/v0_9_smart_input_reference.md` documents where v0.9 lives now
+  and how to inspect it without reintroducing it.
+
 The remainder of this file is the v0.1 - v0.8.7 history; treat it as
 background documentation. The v1.0 contract above takes precedence.
 
