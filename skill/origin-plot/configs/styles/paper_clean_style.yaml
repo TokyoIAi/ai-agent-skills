@@ -1,0 +1,25 @@
+style_name: "paper_clean_style"
+description: "Minimal style for clean paper figures."
+
+graph:
+  title_enabled: false
+  legend_enabled: true
+  rescale: true
+
+axis:
+  x_title_enabled: true
+  y_title_enabled: true
+
+line:
+  width: 2
+  symbol_size: 5
+
+export:
+  png_width: 1800
+  export_png: true
+  export_pdf: true
+  save_opju: true
+
+manual_intervention:
+  allow_first_run_origin_dialog: true
+  auto_click_gui_dialogs: false

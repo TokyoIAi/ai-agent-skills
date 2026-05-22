@@ -1,0 +1,25 @@
+style_name: "presentation_style"
+description: "Larger export and symbols for presentation figures."
+
+graph:
+  title_enabled: true
+  legend_enabled: true
+  rescale: true
+
+axis:
+  x_title_enabled: true
+  y_title_enabled: true
+
+line:
+  width: 3
+  symbol_size: 7
+
+export:
+  png_width: 2000
+  export_png: true
+  export_pdf: true
+  save_opju: true
+
+manual_intervention:
+  allow_first_run_origin_dialog: true
+  auto_click_gui_dialogs: false

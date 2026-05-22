@@ -2,6 +2,9 @@ input_file: "data/sample.csv"
 input_format: "auto"
 sheet_name: null
 
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
 x_column: "x"
 y_columns:
   - "y1"

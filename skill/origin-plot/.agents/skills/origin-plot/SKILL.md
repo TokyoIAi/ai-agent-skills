@@ -189,6 +189,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.2.1: documents a first-run manual Origin dialog caveat; subsequent PowerShell rerun completed without popup.
 - v0.3: batch plotting MVP using `scripts\origin_batch_plot.py` with a batch YAML listing multiple single-plot configs.
 - v0.4: directory scan MVP using `scripts\generate_batch_configs_from_dir.py` to create single-plot configs and a generated batch config from data files.
+- v0.5: style and export profile MVP using reusable YAML profiles under `configs\styles\` and `configs\exports\`.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -266,3 +267,46 @@ When `origin_batch_plot.py` runs a batch with failed jobs, it writes `configs\ge
 - `reports\origin_plot_v0_4_scan_report.json` exists and uses relative paths.
 - Generated batch plotting produces requested PNG/PDF/OPJU outputs.
 - Batch report records retry config status.
+
+## v0.5 Style Profile Workflow
+
+Use v0.5 when users want consistent visual settings across single plots, generated directory-scan configs, and batch jobs. Add a reusable style profile reference to a plot config or scan config:
+
+```yaml
+style_profile: "configs/styles/lab_report_style.yaml"
+```
+
+Style profiles can define title/legend/rescale toggles, axis title toggles, light line settings, symbol size, and default export settings. Do not promise complex Origin template behavior; v0.5 does not use `.otpu` template reuse.
+
+## Export Profile Workflow
+
+Add an export profile reference to a plot config or scan config:
+
+```yaml
+export_profile: "configs/exports/default_export.yaml"
+```
+
+Export profiles define `export_png`, `export_pdf`, `save_opju`, and `png_width`. They are reusable across lab report, paper, and presentation workflows.
+
+## Effective Config Merge Order
+
+Effective export settings are merged from low to high priority:
+
+1. `style_profile.export`
+2. `export_profile`
+3. explicit plot config fields
+
+This preserves backward compatibility with v0.2 configs because existing explicit `export_png`, `export_pdf`, `save_opju`, and `png_width` fields still win.
+
+## Style Warning Policy
+
+Apply only lightweight Origin styling through `originpro`. If title, legend, rescale, axis title, line width, or symbol size operations fail, record the issue in `style.style_warnings` and continue. If requested PNG/PDF/OPJU files are generated and verified, the plot can still PASS with warnings. Never use GUI clicking or screenshot automation to apply style.
+
+## v0.5 Acceptance Criteria
+
+- Style profiles and export profiles load from relative paths.
+- Validator reports style profile, export profile, and effective export settings.
+- Single-plot report includes a `style` object.
+- Batch report includes `style_summary`.
+- Generated scan configs include style and export profile references.
+- Requested PNG/PDF/OPJU outputs still exist.

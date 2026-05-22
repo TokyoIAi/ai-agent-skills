@@ -9,6 +9,7 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
+EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 
 
 def fail(message: str) -> None:
@@ -34,6 +35,42 @@ def resolve_project_path(value: str) -> Path:
     if path.is_absolute():
         return path
     return PROJECT_ROOT / path
+
+
+def rel(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def load_optional_profile(config: dict[str, Any], key: str) -> tuple[str | None, dict[str, Any]]:
+    value = config.get(key)
+    if not value:
+        return None, {}
+    path = resolve_project_path(str(value))
+    if not path.exists():
+        fail(f"{key} does not exist: {path}")
+    profile = load_yaml(path)
+    return rel(path), profile
+
+
+def effective_export_settings(config: dict[str, Any], style_profile: dict[str, Any], export_profile: dict[str, Any]) -> dict[str, Any]:
+    settings: dict[str, Any] = {}
+    style_export = style_profile.get("export") if isinstance(style_profile, dict) else None
+    if isinstance(style_export, dict):
+        settings.update({key: style_export[key] for key in EXPORT_KEYS if key in style_export})
+    settings.update({key: export_profile[key] for key in EXPORT_KEYS if key in export_profile})
+    settings.update({key: config[key] for key in EXPORT_KEYS if key in config})
+    settings.setdefault("export_png", True)
+    settings.setdefault("export_pdf", True)
+    settings.setdefault("save_opju", True)
+    settings.setdefault("png_width", 0)
+    try:
+        settings["png_width"] = int(settings["png_width"])
+    except (TypeError, ValueError):
+        fail("Effective png_width must be an integer.")
+    return settings
 
 
 def detect_format(input_path: Path, input_format: str | None) -> str:
@@ -92,6 +129,10 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
     if graph_type not in SUPPORTED_GRAPH_TYPES:
         fail(f"graph_type must be one of {sorted(SUPPORTED_GRAPH_TYPES)}.")
 
+    style_profile_path, style_profile = load_optional_profile(config, "style_profile")
+    export_profile_path, export_profile = load_optional_profile(config, "export_profile")
+    export_settings = effective_export_settings(config, style_profile, export_profile)
+
     input_path = resolve_project_path(str(config["input_file"]))
     if not input_path.exists():
         fail(f"input_file does not exist: {input_path}")
@@ -119,6 +160,9 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
         "x_column": x_column,
         "y_columns": y_columns,
         "graph_type": graph_type,
+        "style_profile": style_profile_path,
+        "export_profile": export_profile_path,
+        "effective_export_settings": export_settings,
         "output_dir": str(config["output_dir"]),
         "output_basename": str(config["output_basename"]),
     }

@@ -14,6 +14,9 @@ y_column_strategy: "remaining_numeric"
 
 graph_type: "line"
 
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+
 graph_title_template: "{stem}"
 x_title_template: "{x_column}"
 y_title: "Y"

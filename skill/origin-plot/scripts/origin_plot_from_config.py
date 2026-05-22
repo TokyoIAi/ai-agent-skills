@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
 SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol"}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
+EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 MANUAL_INTERVENTION = {
     "user_reported_manual_ok": True,
     "current_rerun_popup_observed_by_user": False,
@@ -48,6 +49,62 @@ def load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("Config must be a YAML mapping.")
     return data
+
+
+def load_optional_profile(config: dict[str, Any], key: str) -> tuple[str | None, dict[str, Any]]:
+    value = config.get(key)
+    if not value:
+        return None, {}
+    path = resolve_project_path(str(value))
+    if not path.exists():
+        raise FileNotFoundError(f"{key} does not exist: {path}")
+    return rel(path), load_yaml(path)
+
+
+def effective_export_settings(config: dict[str, Any], style_profile: dict[str, Any], export_profile: dict[str, Any]) -> dict[str, Any]:
+    settings: dict[str, Any] = {}
+    style_export = style_profile.get("export") if isinstance(style_profile, dict) else None
+    if isinstance(style_export, dict):
+        settings.update({key: style_export[key] for key in EXPORT_KEYS if key in style_export})
+    settings.update({key: export_profile[key] for key in EXPORT_KEYS if key in export_profile})
+    settings.update({key: config[key] for key in EXPORT_KEYS if key in config})
+    settings.setdefault("export_png", True)
+    settings.setdefault("export_pdf", True)
+    settings.setdefault("save_opju", True)
+    settings.setdefault("png_width", 0)
+    settings["png_width"] = int(settings["png_width"] or 0)
+    return settings
+
+
+def style_settings(style_profile: dict[str, Any]) -> dict[str, Any]:
+    graph = style_profile.get("graph", {}) if isinstance(style_profile, dict) else {}
+    axis = style_profile.get("axis", {}) if isinstance(style_profile, dict) else {}
+    line = style_profile.get("line", {}) if isinstance(style_profile, dict) else {}
+    return {
+        "title_enabled": bool(graph.get("title_enabled", True)),
+        "legend_enabled": bool(graph.get("legend_enabled", True)),
+        "rescale": bool(graph.get("rescale", True)),
+        "x_title_enabled": bool(axis.get("x_title_enabled", True)),
+        "y_title_enabled": bool(axis.get("y_title_enabled", True)),
+        "line_width": line.get("width"),
+        "symbol_size": line.get("symbol_size"),
+    }
+
+
+def build_effective_config(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    style_profile_path, style_profile = load_optional_profile(config, "style_profile")
+    export_profile_path, export_profile = load_optional_profile(config, "export_profile")
+    export_settings = effective_export_settings(config, style_profile, export_profile)
+    effective = dict(config)
+    effective.update(export_settings)
+    style_info = {
+        "style_profile": style_profile_path,
+        "export_profile": export_profile_path,
+        "effective_export_settings": export_settings,
+        "applied_style_features": [],
+        "style_warnings": [],
+    }
+    return effective, style_settings(style_profile), style_info
 
 
 def detect_format(input_path: Path, input_format: str | None) -> str:
@@ -115,6 +172,7 @@ def build_report(
     y_columns: list[str],
     graph_type: str | None,
     outputs: dict[str, Path | None],
+    style: dict[str, Any],
     warnings: list[str],
     errors: list[str],
 ) -> dict[str, Any]:
@@ -129,6 +187,7 @@ def build_report(
         "y_columns": y_columns,
         "graph_type": graph_type,
         "outputs": {name: output_status(path) for name, path in outputs.items()},
+        "style": style,
         "manual_intervention": MANUAL_INTERVENTION,
         "warnings": warnings,
         "errors": errors,
@@ -193,6 +252,24 @@ def graph_template_and_plot_type(graph_type: str, warnings: list[str]) -> tuple[
     return "line", "l"
 
 
+def apply_plot_style(plot: Any, settings: dict[str, Any], style_info: dict[str, Any]) -> None:
+    line_width = settings.get("line_width")
+    if line_width is not None:
+        try:
+            plot.width = int(line_width)
+            style_info["applied_style_features"].append("line.width")
+        except Exception as exc:  # noqa: BLE001 - style support varies by Origin plot type
+            style_info["style_warnings"].append(f"Could not apply line.width: {type(exc).__name__}: {exc}")
+
+    symbol_size = settings.get("symbol_size")
+    if symbol_size is not None:
+        try:
+            plot.symbol_size = int(symbol_size)
+            style_info["applied_style_features"].append("line.symbol_size")
+        except Exception as exc:  # noqa: BLE001 - style support varies by Origin plot type
+            style_info["style_warnings"].append(f"Could not apply line.symbol_size: {type(exc).__name__}: {exc}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate Origin plot from v0.2 YAML configuration.")
     parser.add_argument("--config", default="configs/origin_plot_config.yaml")
@@ -209,11 +286,20 @@ def main() -> int:
     x_column: str | None = None
     y_columns: list[str] = []
     graph_type: str | None = None
+    style_info: dict[str, Any] = {
+        "style_profile": None,
+        "export_profile": None,
+        "effective_export_settings": {},
+        "applied_style_features": [],
+        "style_warnings": [],
+    }
+    settings: dict[str, Any] = style_settings({})
     op = None
 
     try:
         config = load_yaml(config_path)
-        input_path, detected_format, raw_df, plot_df, x_column, y_columns, graph_type, dropped = prepare_data(config)
+        effective_config, settings, style_info = build_effective_config(config)
+        input_path, detected_format, raw_df, plot_df, x_column, y_columns, graph_type, dropped = prepare_data(effective_config)
         row_count_raw = int(len(raw_df))
         row_count_used = int(len(plot_df))
         if dropped:
@@ -221,15 +307,15 @@ def main() -> int:
             warnings.append(warning)
             print(warning)
 
-        output_dir = resolve_project_path(str(config["output_dir"]))
-        basename = str(config["output_basename"])
+        output_dir = resolve_project_path(str(effective_config["output_dir"]))
+        basename = str(effective_config["output_basename"])
         output_dir.mkdir(parents=True, exist_ok=True)
-        outputs = requested_outputs(config, output_dir, basename)
+        outputs = requested_outputs(effective_config, output_dir, basename)
 
         import originpro as op  # type: ignore
 
         try:
-            op.set_show(bool(config.get("show_origin", True)))
+            op.set_show(bool(effective_config.get("show_origin", True)))
         except Exception:
             print("FAIL: op.set_show failed")
             traceback.print_exc()
@@ -264,28 +350,47 @@ def main() -> int:
                 plot.name = str(y_col)
             except Exception:
                 pass
+            apply_plot_style(plot, settings, style_info)
 
-        title = str(config.get("graph_title") or input_path.name)
-        try:
-            graph.lt_exec(f'title.text$ = "{title}";')
-        except Exception as exc:  # noqa: BLE001 - title is cosmetic, plot can still export
-            warnings.append(f"Could not set graph title: {type(exc).__name__}: {exc}")
+        title = str(effective_config.get("graph_title") or input_path.name)
+        if settings.get("title_enabled", True):
+            try:
+                graph.lt_exec(f'title.text$ = "{title}";')
+                style_info["applied_style_features"].append("graph.title")
+            except Exception as exc:  # noqa: BLE001 - title is cosmetic, plot can still export
+                style_info["style_warnings"].append(f"Could not set graph title: {type(exc).__name__}: {exc}")
+        else:
+            style_info["applied_style_features"].append("graph.title_disabled")
 
         try:
-            layer.axis("x").title = str(config.get("x_title") or x_column)
-            layer.axis("y").title = str(config.get("y_title") or ", ".join(y_columns))
+            if settings.get("x_title_enabled", True):
+                layer.axis("x").title = str(effective_config.get("x_title") or x_column)
+                style_info["applied_style_features"].append("axis.x_title")
+            if settings.get("y_title_enabled", True):
+                layer.axis("y").title = str(effective_config.get("y_title") or ", ".join(y_columns))
+                style_info["applied_style_features"].append("axis.y_title")
         except Exception as exc:  # noqa: BLE001 - labels are reported but not fatal
-            warnings.append(f"Could not set axis title(s): {type(exc).__name__}: {exc}")
+            style_info["style_warnings"].append(f"Could not set axis title(s): {type(exc).__name__}: {exc}")
 
-        try:
-            graph.lt_exec("legend -r;")
-        except Exception as exc:  # noqa: BLE001 - legend is reported but not fatal
-            warnings.append(f"Could not refresh legend: {type(exc).__name__}: {exc}")
+        if settings.get("legend_enabled", True):
+            try:
+                graph.lt_exec("legend -r;")
+                style_info["applied_style_features"].append("graph.legend")
+            except Exception as exc:  # noqa: BLE001 - legend is reported but not fatal
+                style_info["style_warnings"].append(f"Could not refresh legend: {type(exc).__name__}: {exc}")
+        else:
+            try:
+                graph.lt_exec("legend -d;")
+                style_info["applied_style_features"].append("graph.legend_disabled")
+            except Exception as exc:  # noqa: BLE001 - legend removal support varies
+                style_info["style_warnings"].append(f"Could not disable legend: {type(exc).__name__}: {exc}")
 
-        layer.rescale()
+        if settings.get("rescale", True):
+            layer.rescale()
+            style_info["applied_style_features"].append("graph.rescale")
 
         if outputs["png"] is not None:
-            graph.save_fig(str(outputs["png"]), width=int(config.get("png_width") or 0))
+            graph.save_fig(str(outputs["png"]), width=int(effective_config.get("png_width") or 0))
         if outputs["pdf"] is not None:
             graph.save_fig(str(outputs["pdf"]))
         if outputs["opju"] is not None:
@@ -312,6 +417,7 @@ def main() -> int:
             y_columns,
             graph_type,
             outputs,
+            style_info,
             warnings,
             errors,
         )
@@ -332,6 +438,7 @@ def main() -> int:
             y_columns,
             graph_type,
             outputs,
+            style_info,
             warnings,
             errors,
         )

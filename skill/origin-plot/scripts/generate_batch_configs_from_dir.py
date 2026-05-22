@@ -103,6 +103,8 @@ def make_plot_config(scan_config: dict[str, Any], data_file: Path, detected_form
         "input_file": rel(data_file),
         "input_format": detected_format,
         "sheet_name": None,
+        "style_profile": scan_config.get("style_profile"),
+        "export_profile": scan_config.get("export_profile"),
         "x_column": x_column,
         "y_columns": y_columns,
         "graph_type": str(scan_config.get("graph_type", "line")),

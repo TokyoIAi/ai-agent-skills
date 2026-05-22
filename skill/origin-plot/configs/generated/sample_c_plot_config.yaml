@@ -1,6 +1,8 @@
 input_file: data\batch_inputs\sample_c.tsv
 input_format: tsv
 sheet_name: null
+style_profile: configs/styles/lab_report_style.yaml
+export_profile: configs/exports/default_export.yaml
 x_column: t
 y_columns:
 - value_a

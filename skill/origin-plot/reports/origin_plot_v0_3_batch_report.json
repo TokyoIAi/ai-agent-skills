@@ -24,10 +24,33 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_a\\sample_a.opju",
           "exists": true,
-          "size_bytes": 25909
+          "size_bytes": 27426
         }
       },
       "warnings": [],
+      "style": {
+        "style_profile": "configs\\styles\\lab_report_style.yaml",
+        "export_profile": "configs\\exports\\default_export.yaml",
+        "effective_export_settings": {
+          "export_png": true,
+          "export_pdf": true,
+          "save_opju": true,
+          "png_width": 1400
+        },
+        "applied_style_features": [
+          "line.width",
+          "line.symbol_size",
+          "line.width",
+          "line.symbol_size",
+          "graph.title",
+          "axis.x_title",
+          "axis.y_title",
+          "graph.legend",
+          "graph.rescale"
+        ],
+        "style_warnings": []
+      },
+      "style_warnings": [],
       "error": null
     },
     {
@@ -48,10 +71,33 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_b\\sample_b.opju",
           "exists": true,
-          "size_bytes": 27418
+          "size_bytes": 27406
         }
       },
       "warnings": [],
+      "style": {
+        "style_profile": "configs\\styles\\lab_report_style.yaml",
+        "export_profile": "configs\\exports\\default_export.yaml",
+        "effective_export_settings": {
+          "export_png": true,
+          "export_pdf": true,
+          "save_opju": true,
+          "png_width": 1400
+        },
+        "applied_style_features": [
+          "line.width",
+          "line.symbol_size",
+          "line.width",
+          "line.symbol_size",
+          "graph.title",
+          "axis.x_title",
+          "axis.y_title",
+          "graph.legend",
+          "graph.rescale"
+        ],
+        "style_warnings": []
+      },
+      "style_warnings": [],
       "error": null
     },
     {
@@ -72,10 +118,33 @@
         "opju": {
           "path": "output\\origin_plot_scan\\sample_c\\sample_c.opju",
           "exists": true,
-          "size_bytes": 26165
+          "size_bytes": 27597
         }
       },
       "warnings": [],
+      "style": {
+        "style_profile": "configs\\styles\\lab_report_style.yaml",
+        "export_profile": "configs\\exports\\default_export.yaml",
+        "effective_export_settings": {
+          "export_png": true,
+          "export_pdf": true,
+          "save_opju": true,
+          "png_width": 1400
+        },
+        "applied_style_features": [
+          "line.width",
+          "line.symbol_size",
+          "line.width",
+          "line.symbol_size",
+          "graph.title",
+          "axis.x_title",
+          "axis.y_title",
+          "graph.legend",
+          "graph.rescale"
+        ],
+        "style_warnings": []
+      },
+      "style_warnings": [],
       "error": null
     }
   ],
@@ -83,6 +152,12 @@
     "generated": false,
     "path": "configs\\generated\\retry_failed_jobs.yaml",
     "failed_job_count": 0
+  },
+  "style_summary": {
+    "jobs_with_style_warnings": 0,
+    "style_profiles_used": [
+      "configs\\styles\\lab_report_style.yaml"
+    ]
   },
   "manual_intervention": {
     "policy": "GUI dialog auto-clicking is intentionally not implemented.",

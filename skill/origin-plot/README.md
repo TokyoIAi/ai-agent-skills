@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.4.
+Current version: v0.5.
 
 ## Supported formats
 
@@ -123,6 +123,29 @@ py scripts\origin_batch_plot.py --batch-config configs\generated\generated_batch
 
 The batch script performs the real Origin plotting. If any job fails, it writes `configs/generated/retry_failed_jobs.yaml` containing only failed jobs and records `retry_config` in `reports/origin_plot_v0_3_batch_report.json`.
 
+## v0.5 Style Profiles and Export Profiles
+
+Style profiles are reusable YAML files under `configs/styles/` that describe light graph behavior such as title, legend, rescale, axis title toggles, line width, symbol size, and default export settings. Export profiles are reusable YAML files under `configs/exports/` that focus only on export switches and PNG width.
+
+Example single-plot config references:
+
+```yaml
+style_profile: "configs/styles/lab_report_style.yaml"
+export_profile: "configs/exports/default_export.yaml"
+```
+
+Scan configs can also reference the same fields. Generated plot configs copy those references so a directory scan can produce a consistently styled batch.
+
+Effective export settings merge in this order, lowest to highest priority:
+
+1. `style_profile.export`
+2. `export_profile`
+3. explicit fields in the plot config
+
+The style layer is best-effort. Stable settings such as title, axis titles, legend refresh, rescale, line width, and symbol size are attempted through `originpro`. If an Origin API or plot type does not accept a style operation, the script records a `style_warnings` entry and still treats the job as PASS when requested PNG/PDF/OPJU outputs exist.
+
+This skill still does not use GUI automation, screenshot recognition, mouse-coordinate clicking, or auto-clicking of Origin dialogs.
+
 ## YAML fields
 
 - `input_file`: input data path, usually relative to this subproject.
@@ -137,6 +160,8 @@ The batch script performs the real Origin plotting. If any job fails, it writes 
 - `show_origin`: show or hide Origin while automating.
 - `save_opju`, `export_png`, `export_pdf`: requested output switches.
 - `png_width`: PNG export width in pixels.
+- `style_profile`: optional path to a reusable style YAML.
+- `export_profile`: optional path to a reusable export YAML.
 
 ## Outputs
 

@@ -100,12 +100,15 @@ def read_single_report() -> dict[str, Any] | None:
 
 def job_from_single_report(name: str, config: str, report: dict[str, Any]) -> dict[str, Any]:
     status = "PASS" if report.get("status") == "PASS" else "FAIL"
+    style = report.get("style") or {}
     return {
         "name": name,
         "config": config,
         "status": status,
         "outputs": report.get("outputs") or empty_outputs(),
         "warnings": report.get("warnings", []),
+        "style": style,
+        "style_warnings": style.get("style_warnings", []),
         "error": None if status == "PASS" else "; ".join(report.get("errors") or ["plot failed"]),
     }
 
@@ -200,6 +203,22 @@ def create_retry_config(batch_name: str | None, results: list[dict[str, Any]]) -
     return retry_info
 
 
+def style_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    style_profiles: list[str] = []
+    jobs_with_warnings = 0
+    for job in results:
+        style = job.get("style") or {}
+        profile = style.get("style_profile")
+        if profile and profile not in style_profiles:
+            style_profiles.append(profile)
+        if job.get("style_warnings"):
+            jobs_with_warnings += 1
+    return {
+        "jobs_with_style_warnings": jobs_with_warnings,
+        "style_profiles_used": style_profiles,
+    }
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -263,6 +282,7 @@ def main() -> int:
         "continue_on_error": continue_on_error,
         "jobs": results,
         "retry_config": retry_config,
+        "style_summary": style_summary(results),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,

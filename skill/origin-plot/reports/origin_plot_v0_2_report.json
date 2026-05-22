@@ -20,13 +20,35 @@
     "pdf": {
       "path": "output\\origin_plot_config\\sample_origin_plot.pdf",
       "exists": true,
-      "size_bytes": 7973
+      "size_bytes": 7954
     },
     "opju": {
       "path": "output\\origin_plot_config\\sample_origin_plot.opju",
       "exists": true,
-      "size_bytes": 27622
+      "size_bytes": 26005
     }
+  },
+  "style": {
+    "style_profile": "configs\\styles\\lab_report_style.yaml",
+    "export_profile": "configs\\exports\\default_export.yaml",
+    "effective_export_settings": {
+      "export_png": true,
+      "export_pdf": true,
+      "save_opju": true,
+      "png_width": 1400
+    },
+    "applied_style_features": [
+      "line.width",
+      "line.symbol_size",
+      "line.width",
+      "line.symbol_size",
+      "graph.title",
+      "axis.x_title",
+      "axis.y_title",
+      "graph.legend",
+      "graph.rescale"
+    ],
+    "style_warnings": []
   },
   "manual_intervention": {
     "user_reported_manual_ok": true,
