@@ -1,0 +1,18 @@
+input_file: data\batch_inputs\sample_c.tsv
+input_format: tsv
+sheet_name: null
+x_column: t
+y_columns:
+- value_a
+- value_b
+graph_type: line
+graph_title: sample_c
+x_title: t
+y_title: Y
+output_dir: output/origin_plot_scan/sample_c
+output_basename: sample_c
+show_origin: true
+save_opju: true
+export_png: true
+export_pdf: true
+png_width: 1400

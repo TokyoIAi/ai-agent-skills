@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.3.
+Current version: v0.4.
 
 ## Supported formats
 
@@ -85,6 +85,44 @@ reports/origin_plot_v0_3_batch_report.json
 
 Single job failures do not cause the batch script to exit without a report. The batch status is `PASS` when all jobs pass, `PARTIAL PASS` when some pass and some fail, and `FAIL` when all jobs fail.
 
+## v0.4 Directory Scan and Auto Batch Config
+
+Place multiple CSV/XLSX/TSV/TXT files under:
+
+```text
+data/batch_inputs/
+```
+
+Generate single-plot configs and a batch config:
+
+```powershell
+py scripts\generate_batch_configs_from_dir.py --scan-config configs\scan\scan_config.yaml
+```
+
+The scan step does not call Origin. It only reads data files, infers numeric X/Y columns, writes generated YAML configs, and writes `reports/origin_plot_v0_4_scan_report.json`.
+
+Scan YAML fields:
+
+- `scan_name`: name for generated batch and report.
+- `input_dir`: directory to scan.
+- `recursive`: scan nested directories when true.
+- `input_formats`: allowed formats: `csv`, `xlsx`, `tsv`, `txt`.
+- `x_column_strategy`: v0.4 supports `first_numeric`.
+- `y_column_strategy`: v0.4 supports `remaining_numeric`.
+- `graph_type`: default graph type for generated configs.
+- `output_root`: output root used by generated plot configs.
+- `generated_config_dir`: destination for generated single-plot YAML files.
+- `generated_batch_config`: generated batch YAML path.
+- `continue_on_error`: copied to the generated batch config.
+
+Run the generated batch:
+
+```powershell
+py scripts\origin_batch_plot.py --batch-config configs\generated\generated_batch_config.yaml
+```
+
+The batch script performs the real Origin plotting. If any job fails, it writes `configs/generated/retry_failed_jobs.yaml` containing only failed jobs and records `retry_config` in `reports/origin_plot_v0_3_batch_report.json`.
+
 ## YAML fields
 
 - `input_file`: input data path, usually relative to this subproject.
@@ -109,6 +147,7 @@ The v0.2 script writes requested outputs such as:
 - `output/origin_plot_config/sample_origin_plot.opju`
 - `reports/origin_plot_v0_2_report.json`
 - `reports/origin_plot_v0_3_batch_report.json`
+- `reports/origin_plot_v0_4_scan_report.json`
 
 `output/` is generated and ignored by Git. The report uses relative paths so it can be committed when useful.
 

@@ -1,0 +1,18 @@
+input_file: data\batch_inputs\sample_a.csv
+input_format: csv
+sheet_name: null
+x_column: x
+y_columns:
+- signal_a
+- signal_b
+graph_type: line
+graph_title: sample_a
+x_title: x
+y_title: Y
+output_dir: output/origin_plot_scan/sample_a
+output_basename: sample_a
+show_origin: true
+save_opju: true
+export_png: true
+export_pdf: true
+png_width: 1400

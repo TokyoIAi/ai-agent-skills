@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scan_name": "sample_scan_v0_4",
+  "input_dir": "data\\batch_inputs",
+  "files_seen": 3,
+  "files_supported": 3,
+  "configs_generated": 3,
+  "failed_count": 0,
+  "generated_batch_config": "configs\\generated\\generated_batch_config.yaml",
+  "generated_configs": [
+    "configs\\generated\\sample_a_plot_config.yaml",
+    "configs\\generated\\sample_b_plot_config.yaml",
+    "configs\\generated\\sample_c_plot_config.yaml"
+  ],
+  "failures": []
+}

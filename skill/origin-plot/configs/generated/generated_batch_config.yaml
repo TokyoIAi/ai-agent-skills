@@ -1,0 +1,9 @@
+batch_name: sample_scan_v0_4
+continue_on_error: true
+jobs:
+- name: sample_a
+  config: configs\generated\sample_a_plot_config.yaml
+- name: sample_b
+  config: configs\generated\sample_b_plot_config.yaml
+- name: sample_c
+  config: configs\generated\sample_c_plot_config.yaml

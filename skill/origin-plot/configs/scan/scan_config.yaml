@@ -1,0 +1,30 @@
+scan_name: "sample_scan_v0_4"
+
+input_dir: "data/batch_inputs"
+recursive: false
+
+input_formats:
+  - csv
+  - xlsx
+  - tsv
+  - txt
+
+x_column_strategy: "first_numeric"
+y_column_strategy: "remaining_numeric"
+
+graph_type: "line"
+
+graph_title_template: "{stem}"
+x_title_template: "{x_column}"
+y_title: "Y"
+
+output_root: "output/origin_plot_scan"
+generated_config_dir: "configs/generated"
+generated_batch_config: "configs/generated/generated_batch_config.yaml"
+
+export_png: true
+export_pdf: true
+save_opju: true
+show_origin: true
+
+continue_on_error: true

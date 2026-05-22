@@ -188,6 +188,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.2: YAML-configured plotting for CSV/XLSX/TSV/TXT input using `scripts\validate_origin_plot_config.py` and `scripts\origin_plot_from_config.py`.
 - v0.2.1: documents a first-run manual Origin dialog caveat; subsequent PowerShell rerun completed without popup.
 - v0.3: batch plotting MVP using `scripts\origin_batch_plot.py` with a batch YAML listing multiple single-plot configs.
+- v0.4: directory scan MVP using `scripts\generate_batch_configs_from_dir.py` to create single-plot configs and a generated batch config from data files.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -221,3 +222,47 @@ Required batch fields:
 ## Failure Handling for Batch Jobs
 
 Do not let one failed job prevent report creation. If `continue_on_error` is true, record the failed job and continue. If it is false, stop after the failed job but still write the batch report. Never use GUI automation to clear Origin dialogs; ask the user to complete first-run or license initialization manually.
+
+## v0.4 Directory Scan Workflow
+
+Use v0.4 when the user has many CSV/XLSX/TSV/TXT files and wants Codex to infer basic plotting configs automatically. Run from `skill/origin-plot/`:
+
+```powershell
+py scripts\generate_batch_configs_from_dir.py --scan-config configs\scan\scan_config.yaml
+py scripts\origin_batch_plot.py --batch-config configs\generated\generated_batch_config.yaml
+```
+
+The scan step never calls Origin. It only reads data with pandas, infers columns, writes generated YAML configs, writes a generated batch config, and records `reports\origin_plot_v0_4_scan_report.json`.
+
+## Scan YAML Schema
+
+Required scan fields:
+
+- `scan_name`: batch/report name.
+- `input_dir`: directory containing data files.
+- `recursive`: whether to scan nested directories.
+- `input_formats`: supported values are `csv`, `xlsx`, `tsv`, and `txt`.
+- `x_column_strategy`: v0.4 supports only `first_numeric`.
+- `y_column_strategy`: v0.4 supports only `remaining_numeric`.
+- `graph_type`: default graph type for generated plot configs.
+- `output_root`: output root for generated plot outputs.
+- `generated_config_dir`: destination for generated single-plot YAML configs.
+- `generated_batch_config`: destination for generated batch YAML.
+- `continue_on_error`: copied to the generated batch YAML.
+
+## Auto Config Generation Rules
+
+For each supported file, read it with pandas, find numeric or numeric-convertible columns, use the first numeric column as X, and use remaining numeric columns as Y. If a file cannot be read or has fewer than two numeric columns, record a failure and keep scanning other files.
+
+## Retry Failed Jobs Workflow
+
+When `origin_batch_plot.py` runs a batch with failed jobs, it writes `configs\generated\retry_failed_jobs.yaml` containing only failed jobs and records `retry_config` in `reports\origin_plot_v0_3_batch_report.json`. If no jobs fail, `retry_config.generated` is false and `failed_job_count` is 0.
+
+## v0.4 Acceptance Criteria
+
+- Directory scan generates at least one single-plot config.
+- The sample scan generates at least three configs.
+- `configs\generated\generated_batch_config.yaml` exists and uses relative paths.
+- `reports\origin_plot_v0_4_scan_report.json` exists and uses relative paths.
+- Generated batch plotting produces requested PNG/PDF/OPJU outputs.
+- Batch report records retry config status.

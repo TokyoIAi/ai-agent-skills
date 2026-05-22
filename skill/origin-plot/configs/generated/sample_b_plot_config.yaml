@@ -1,0 +1,18 @@
+input_file: data\batch_inputs\sample_b.csv
+input_format: csv
+sheet_name: null
+x_column: time
+y_columns:
+- response_1
+- response_2
+graph_type: line
+graph_title: sample_b
+x_title: time
+y_title: Y
+output_dir: output/origin_plot_scan/sample_b
+output_basename: sample_b
+show_origin: true
+save_opju: true
+export_png: true
+export_pdf: true
+png_width: 1400

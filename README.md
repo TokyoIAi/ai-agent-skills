@@ -6,7 +6,7 @@ A personal collection of reusable AI Agent Skills for Codex, Claude Code, and lo
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | skill/origin-plot | v0.3 Batch Plotting MVP | Config-based and batch Origin / OriginPro plotting with CSV/XLSX/TSV/TXT input. |
+| origin-plot | skill/origin-plot | v0.4 Directory Scan + Auto Batch Config | Config-based, batch, and directory-scan Origin / OriginPro plotting with CSV/XLSX/TSV/TXT input. |
 
 ## Repository layout
 

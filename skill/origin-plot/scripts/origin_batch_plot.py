@@ -11,6 +11,7 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SINGLE_REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
 BATCH_REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_3_batch_report.json"
+RETRY_CONFIG_PATH = PROJECT_ROOT / "configs" / "generated" / "retry_failed_jobs.yaml"
 
 
 def rel(path: Path) -> str:
@@ -163,6 +164,42 @@ def save_batch_report(report: dict[str, Any]) -> None:
     BATCH_REPORT_PATH.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def save_yaml(path: Path, data: dict[str, Any]) -> None:
+    try:
+        import yaml
+    except ModuleNotFoundError:
+        raise RuntimeError("Please install PyYAML: py -m pip install pyyaml") from None
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
+def create_retry_config(batch_name: str | None, results: list[dict[str, Any]]) -> dict[str, Any]:
+    failed_jobs = [
+        {"name": str(job["name"]), "config": str(job["config"])}
+        for job in results
+        if job.get("status") != "PASS" and job.get("name") != "__batch_setup__"
+    ]
+    retry_info = {
+        "generated": False,
+        "path": rel(RETRY_CONFIG_PATH),
+        "failed_job_count": len(failed_jobs),
+    }
+    if not failed_jobs:
+        return retry_info
+
+    save_yaml(
+        RETRY_CONFIG_PATH,
+        {
+            "batch_name": f"{batch_name or 'batch'}_retry_failed",
+            "continue_on_error": True,
+            "jobs": failed_jobs,
+        },
+    )
+    retry_info["generated"] = True
+    return retry_info
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -216,6 +253,7 @@ def main() -> int:
     passed_count = sum(1 for job in results if job.get("status") == "PASS")
     failed_count = sum(1 for job in results if job.get("status") != "PASS")
     status = batch_status(passed_count, failed_count)
+    retry_config = create_retry_config(batch_name, results)
     report = {
         "status": status,
         "batch_name": batch_name,
@@ -224,6 +262,7 @@ def main() -> int:
         "failed_count": failed_count,
         "continue_on_error": continue_on_error,
         "jobs": results,
+        "retry_config": retry_config,
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,
