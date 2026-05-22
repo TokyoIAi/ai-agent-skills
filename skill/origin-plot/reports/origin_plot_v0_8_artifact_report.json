@@ -58,7 +58,7 @@
   "reports_without_health_status": 1,
   "warnings": [],
   "missing_artifacts": [],
-  "timestamp_utc": "2026-05-22T06:23:42Z",
+  "timestamp_utc": "2026-05-22T06:38:50Z",
   "input_mode": "reports_dir",
   "reports_dir": "reports",
   "injection_filter": "exclude_injection",

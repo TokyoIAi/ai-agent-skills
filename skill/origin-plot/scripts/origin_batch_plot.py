@@ -7,6 +7,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Allow imports relative to this script's directory so origin_session_utils
+# can be reused without packaging.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SINGLE_REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
@@ -387,52 +391,24 @@ def session_history_summary(
     degraded_ok_after_retry_threshold: int = 3,
     degraded_failed_threshold: int = 1,
 ) -> dict[str, Any]:
-    """Read reports/session_history.json and summarize recent health."""
+    """Read reports/session_history.json and summarize recent health.
+
+    Delegates to :func:`origin_session_utils.compute_health_snapshot` to keep
+    the logic consistent between batch and single-plot paths.
+    """
+    from origin_session_utils import compute_health_snapshot
+
     history_path = PROJECT_ROOT / "reports" / "session_history.json"
-    summary: dict[str, Any] = {
-        "history_path": rel(history_path),
-        "entries_seen": 0,
-        "recent_window": int(recent_window),
-        "degraded_ok_after_retry_threshold": int(degraded_ok_after_retry_threshold),
-        "degraded_failed_threshold": int(degraded_failed_threshold),
-        "recent_ok": 0,
-        "recent_ok_after_retry": 0,
-        "recent_failed": 0,
-        "recent_injection_triggered": 0,
-        "health_status": "unknown",
-    }
-    if not history_path.exists():
-        return summary
-    try:
-        raw = history_path.read_text(encoding="utf-8")
-        entries = json.loads(raw)
-    except (OSError, json.JSONDecodeError):
-        return summary
-    if not isinstance(entries, list):
-        return summary
-
-    summary["entries_seen"] = len(entries)
-    recent = entries[-int(recent_window):] if recent_window > 0 else []
-    for entry in recent:
-        if not isinstance(entry, dict):
-            continue
-        fss = str(entry.get("final_session_status") or "")
-        if fss == "ok":
-            summary["recent_ok"] += 1
-        elif fss == "ok_after_retry":
-            summary["recent_ok_after_retry"] += 1
-        elif fss == "failed":
-            summary["recent_failed"] += 1
-        if entry.get("injection_triggered"):
-            summary["recent_injection_triggered"] += 1
-
-    if summary["recent_failed"] >= int(degraded_failed_threshold):
-        summary["health_status"] = "degraded"
-    elif summary["recent_ok_after_retry"] >= int(degraded_ok_after_retry_threshold):
-        summary["health_status"] = "degraded"
-    else:
-        summary["health_status"] = "ok"
-    return summary
+    snapshot = compute_health_snapshot(
+        history_path,
+        rel(history_path),
+        {
+            "recent_window": int(recent_window),
+            "degraded_ok_after_retry_threshold": int(degraded_ok_after_retry_threshold),
+            "degraded_failed_threshold": int(degraded_failed_threshold),
+        },
+    )
+    return snapshot
 
 
 def derive_health_policy(results: list[dict[str, Any]]) -> dict[str, int]:

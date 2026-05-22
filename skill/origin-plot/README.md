@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.6.
+Current version: v0.8.7.
 
 ## Supported formats
 
@@ -827,6 +827,53 @@ A new repository-level `CONTRIBUTING.md` documents:
 ### Health is advisory
 
 `health_status` is still a soft signal. A `degraded` snapshot does not flip plot status. The plot pass/fail decision is based purely on artifacts, retries, and pipeline outcomes.
+
+## v0.8.7 Release Hygiene
+
+v0.8.7 closes the v0.8.x series with release-discipline tooling: a committed-report path scanner, a CI-friendly health echo, and a small refactor that lets batch and single-plot reports share one health computation. After v0.8.7 the v0.8.x line is frozen for real-usage observation; new plotting features wait for v0.9.
+
+### `check_committed_reports.py`
+
+```powershell
+py scripts\check_committed_reports.py
+py scripts\check_committed_reports.py --reports-dir reports
+py scripts\check_committed_reports.py --include-bak
+```
+
+Scans `reports/*.json|*.csv|*.md|*.txt` for absolute path leaks (`H:\`, `C:\`, `E:\`, `H:/`, `C:/`, `H:\\` JSON-escaped form, and POSIX `/mnt/`). Prints `PASS: committed report path check ok` and exits 0 when clean. On detection, prints offending file/line/snippet and exits 1.
+
+`session_history.bak.json` and `*.bak` are skipped by default; pass `--include-bak` to scan them too.
+
+### Pre-commit smoke now includes the path check
+
+`pre_commit_smoke.ps1` and `pre_commit_smoke.sh` now run two steps:
+
+1. `run_smoke_tests.py --skip-origin`
+2. `check_committed_reports.py`
+
+Either failure aborts the guard with exit code 1.
+
+### `--print-health`
+
+```powershell
+py scripts\origin_plot_from_config.py --config <config> --print-health
+```
+
+After the report is written, the script prints one machine-readable line:
+
+```
+HEALTH_SNAPSHOT_JSON: {"degraded_failed_threshold": 1, "degraded_ok_after_retry_threshold": 3, ...}
+```
+
+Shell or CI consumers can extract the JSON and assert on `health_status` directly. When no snapshot is available the line carries `{"health_status": "unknown"}`. The line never includes absolute paths.
+
+### Batch health refactor
+
+`origin_batch_plot.py` now sources `session_history_summary` from the shared `compute_health_snapshot` helper in `origin_session_utils.py`. Field names and semantics are unchanged. Single-plot and batch reports now share one source of truth for health computation.
+
+### v0.8.x freeze policy
+
+After v0.8.7, the v0.8.x line is frozen pending real-usage observation. Bug fixes during the freeze land as `v0.8.7-hotfix-N` if absolutely necessary. New plotting features (multi-series fitting, color profiles, `.otpu` template reuse, multi-panel layouts) target v0.9 and require a clean stretch of `health_status="ok"` runs in production before development starts.
 
 ## YAML fields
 

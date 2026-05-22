@@ -199,6 +199,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.8.4: bounded session history retention, batch session_history_summary with health_status, artifact summary --since filter, and offline-only smoke runner mode.
 - v0.8.5: report-level timestamp_utc, session-history reset CLI/script, configurable session-health policy, artifact summary missing-timestamp filter, and pre-commit smoke runner scripts.
 - v0.8.6: health policy CLI override, single-plot session_health_snapshot, artifact health_status_counts rollup, and repository-level CONTRIBUTING.md.
+- v0.8.7: committed-report path leak scanner, pre-commit hygiene workflow, --print-health CLI, and batch health refactor onto compute_health_snapshot.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -836,3 +837,36 @@ Health status is sourced batch-first (`session_history_summary`), then single-pl
 - Artifact summary contains `health_status_counts`, `reports_with_health_status`, `reports_without_health_status`.
 - Repository root contains `CONTRIBUTING.md` covering scope, safety rules, smoke runs, acceptance routine, smoke-test registration, and versioning.
 - Reports remain free of absolute paths and `output/` stays git-ignored.
+
+## Report Path Leak Check (v0.8.7)
+
+`scripts/check_committed_reports.py` scans `reports/*.json|*.csv|*.md|*.txt` for absolute-path patterns (`H:\`, `C:\`, `E:\` raw and JSON-escaped, `H:/` forward-slash, `/mnt/`). Defaults skip `session_history.bak.json` and any `*.bak` siblings; `--include-bak` covers them too. Exit 0 with `PASS: committed report path check ok` when clean; exit 1 with line-level findings when leaks exist.
+
+## Print Health CLI Contract (v0.8.7)
+
+`origin_plot_from_config.py --print-health` writes a single line to stdout after the report is saved:
+
+```
+HEALTH_SNAPSHOT_JSON: {"health_status": "ok", ...}
+```
+
+The payload is the same dict as `report.session_health_snapshot`. When the snapshot is missing or empty, the payload is `{"health_status": "unknown"}`. The line must never contain absolute paths. Tests in `scripts/test_print_health.py` enforce the prefix and the no-absolute-paths rule offline.
+
+## Pre-commit Hygiene Workflow (v0.8.7)
+
+`pre_commit_smoke.ps1` (and `pre_commit_smoke.sh`) now run two stages:
+
+1. Offline smoke tests via `run_smoke_tests.py --skip-origin`.
+2. Report path leak scan via `check_committed_reports.py`.
+
+Either failure aborts the guard with exit code 1. Manual-only — neither script installs Git hooks.
+
+## v0.8.7 Acceptance Criteria
+
+- `check_committed_reports.py` exits 0 with `PASS: committed report path check ok` against the clean reports directory.
+- `pre_commit_smoke.ps1` and `pre_commit_smoke.sh` execute both stages and exit 0 when both pass.
+- `--print-health` emits `HEALTH_SNAPSHOT_JSON: <json>` on stdout when invoked. The JSON parses and contains `health_status`.
+- Batch reports continue to include a fully-populated `session_history_summary` even after the refactor onto `compute_health_snapshot`.
+- `test_print_health` is registered as an offline smoke test and passes under `--skip-origin`.
+- Reports remain free of absolute paths.
+- After v0.8.7, the v0.8.x line is frozen for production observation.

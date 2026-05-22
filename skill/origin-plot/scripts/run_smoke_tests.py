@@ -30,6 +30,11 @@ def all_tests() -> list[tuple[str, list[str], bool]]:
             False,
         ),
         (
+            "test_print_health",
+            [sys.executable, "scripts/test_print_health.py"],
+            False,
+        ),
+        (
             "test_cli_retry_injection",
             [sys.executable, "scripts/test_cli_retry_injection.py"],
             True,

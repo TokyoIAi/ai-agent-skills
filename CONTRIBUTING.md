@@ -96,6 +96,113 @@ If any test fails, do not commit.
 4. Document the test briefly in the relevant `README.md` section if the test
    exercises a user-visible workflow.
 
+## Adding a new smoke test (concrete example)
+
+Suppose you want to verify a hypothetical helper `format_summary()` exposed by
+`scripts/example_utils.py`. The full workflow:
+
+### 1. Create the script
+
+`scripts/test_example_logic.py`:
+
+```python
+from __future__ import annotations
+
+import sys
+import traceback
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from example_utils import format_summary  # noqa: E402
+
+
+def assert_true(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def test_format_summary_includes_status() -> None:
+    payload = format_summary({"status": "PASS"})
+    assert_true("PASS" in payload, f"expected PASS in payload; got {payload!r}")
+
+
+def run_all() -> int:
+    tests = [test_format_summary_includes_status]
+    failed = 0
+    for test in tests:
+        try:
+            test()
+            print(f"ok: {test.__name__}")
+        except AssertionError as exc:
+            failed += 1
+            print(f"FAIL: {test.__name__}: {exc}")
+        except Exception:  # noqa: BLE001
+            failed += 1
+            print(f"FAIL: {test.__name__} raised an unexpected error")
+            traceback.print_exc()
+    if failed:
+        print(f"FAIL: {failed} test(s) failed")
+        return 1
+    print("PASS: example logic smoke tests ok")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(run_all())
+```
+
+### 2. Exit code contract
+
+- `0` (zero) means PASS.
+- Non-zero means FAIL. Always print a `FAIL: ...` line so the runner can show
+  the reason.
+
+### 3. Stdout contract
+
+- A single `PASS: <description> ok` on success, after any per-test `ok: ...`
+  lines.
+- One or more `FAIL: <reason>` lines on failure.
+- Avoid printing absolute paths.
+
+### 4. Register in `run_smoke_tests.py`
+
+Append a tuple to `all_tests()`:
+
+```python
+(
+    "test_example_logic",
+    [sys.executable, "scripts/test_example_logic.py"],
+    False,  # requires_origin
+),
+```
+
+### 5. When to set `requires_origin=True`
+
+Set it to `True` when the test:
+
+- Imports `originpro` (or `OriginExt`).
+- Spawns a subprocess that calls `originpro` (e.g., the CLI retry test that
+  invokes `origin_plot_from_config.py`).
+- Depends on a running Origin install or COM bridge.
+
+When unsure, prefer `True`. Tests marked `requires_origin=True` are skipped by
+`run_smoke_tests.py --skip-origin` and the pre-commit guard.
+
+### 6. Run before committing
+
+From `skill/origin-plot/`:
+
+```powershell
+py scripts\run_smoke_tests.py --skip-origin
+powershell -ExecutionPolicy Bypass -File scripts\pre_commit_smoke.ps1
+```
+
+```bash
+bash scripts/pre_commit_smoke.sh
+```
+
+If either fails, fix the test or the code before committing.
+
 ## Versioning convention
 
 - `vX.Y` — feature increments (new capability, new schema, new artifact).

@@ -10,13 +10,24 @@ $projectRoot = Split-Path -Parent $scriptDir
 
 Push-Location $projectRoot
 try {
-    Write-Host "Running offline smoke tests (no Origin required)..."
+    Write-Host "Step 1/2: Running offline smoke tests (no Origin required)..."
     py scripts\run_smoke_tests.py --skip-origin
-    $code = $LASTEXITCODE
-    if ($code -ne 0) {
-        Write-Host "FAIL: pre-commit smoke tests failed (exit $code)"
+    $smokeCode = $LASTEXITCODE
+    if ($smokeCode -ne 0) {
+        Write-Host "FAIL: pre-commit smoke tests failed (exit $smokeCode)"
         exit 1
     }
+
+    Write-Host ""
+    Write-Host "Step 2/2: Scanning reports/ for absolute path leaks..."
+    py scripts\check_committed_reports.py
+    $checkCode = $LASTEXITCODE
+    if ($checkCode -ne 0) {
+        Write-Host "FAIL: pre-commit report path check failed (exit $checkCode)"
+        exit 1
+    }
+
+    Write-Host ""
     Write-Host "PASS: pre-commit smoke tests ok"
     exit 0
 }

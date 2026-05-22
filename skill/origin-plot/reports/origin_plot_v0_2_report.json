@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "timestamp_utc": "2026-05-22T06:23:27Z",
+  "timestamp_utc": "2026-05-22T06:38:23Z",
   "config_path": "configs\\fitting\\linear_fit_config.yaml",
   "input_file": "data\\fit_sample.csv",
   "detected_format": "csv",
@@ -134,17 +134,11 @@
     "history_max_entries": 100,
     "session_profile": null,
     "session_profile_settings": {},
-    "cli_session_overrides": {
-      "health": {
-        "recent_window": 5,
-        "degraded_ok_after_retry_threshold": 2,
-        "degraded_failed_threshold": 1
-      }
-    },
+    "cli_session_overrides": {},
     "health_policy_overrides": {
-      "recent_window": 5,
-      "degraded_ok_after_retry_threshold": 2,
-      "degraded_failed_threshold": 1
+      "recent_window": null,
+      "degraded_ok_after_retry_threshold": null,
+      "degraded_failed_threshold": null
     },
     "effective_settings": {
       "retry_on_com_error": true,
@@ -154,8 +148,8 @@
       "inject_session_error_once": false,
       "history_max_entries": 100,
       "health": {
-        "recent_window": 5,
-        "degraded_ok_after_retry_threshold": 2,
+        "recent_window": 20,
+        "degraded_ok_after_retry_threshold": 3,
         "degraded_failed_threshold": 1
       }
     },
@@ -177,7 +171,7 @@
   "session_history": {
     "path": "reports\\session_history.json",
     "updated": true,
-    "entry_count_after_update": 2,
+    "entry_count_after_update": 5,
     "history_max_entries": 100,
     "truncated": false,
     "reset_before_run": false,
@@ -185,14 +179,14 @@
   },
   "session_health_snapshot": {
     "history_path": "reports\\session_history.json",
-    "entries_seen": 2,
-    "recent_window": 5,
-    "degraded_ok_after_retry_threshold": 2,
+    "entries_seen": 5,
+    "recent_window": 20,
+    "degraded_ok_after_retry_threshold": 3,
     "degraded_failed_threshold": 1,
-    "recent_ok": 2,
-    "recent_ok_after_retry": 0,
+    "recent_ok": 4,
+    "recent_ok_after_retry": 1,
     "recent_failed": 0,
-    "recent_injection_triggered": 0,
+    "recent_injection_triggered": 1,
     "health_status": "ok"
   }
 }

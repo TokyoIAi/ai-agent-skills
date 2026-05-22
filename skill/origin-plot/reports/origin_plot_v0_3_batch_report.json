@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "timestamp_utc": "2026-05-22T06:23:42Z",
+  "timestamp_utc": "2026-05-22T06:38:50Z",
   "batch_name": "fitting_batch_v0_8_1",
   "job_count": 2,
   "passed_count": 2,
@@ -376,14 +376,14 @@
   },
   "session_history_summary": {
     "history_path": "reports\\session_history.json",
-    "entries_seen": 4,
+    "entries_seen": 7,
     "recent_window": 20,
     "degraded_ok_after_retry_threshold": 3,
     "degraded_failed_threshold": 1,
-    "recent_ok": 4,
-    "recent_ok_after_retry": 0,
+    "recent_ok": 6,
+    "recent_ok_after_retry": 1,
     "recent_failed": 0,
-    "recent_injection_triggered": 0,
+    "recent_injection_triggered": 1,
     "health_status": "ok"
   },
   "manual_intervention": {

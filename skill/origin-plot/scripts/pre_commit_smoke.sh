@@ -12,15 +12,27 @@ project_root="$(dirname "$script_dir")"
 
 cd "$project_root"
 
-echo "Running offline smoke tests (no Origin required)..."
+py_cmd="python"
 if command -v py >/dev/null 2>&1; then
-    py scripts/run_smoke_tests.py --skip-origin
-else
-    python scripts/run_smoke_tests.py --skip-origin
+    py_cmd="py"
 fi
+
+echo "Step 1/2: Running offline smoke tests (no Origin required)..."
+"$py_cmd" scripts/run_smoke_tests.py --skip-origin
 status=$?
 if [ "$status" -ne 0 ]; then
     echo "FAIL: pre-commit smoke tests failed (exit $status)"
     exit 1
 fi
+
+echo ""
+echo "Step 2/2: Scanning reports/ for absolute path leaks..."
+"$py_cmd" scripts/check_committed_reports.py
+status=$?
+if [ "$status" -ne 0 ]; then
+    echo "FAIL: pre-commit report path check failed (exit $status)"
+    exit 1
+fi
+
+echo ""
 echo "PASS: pre-commit smoke tests ok"

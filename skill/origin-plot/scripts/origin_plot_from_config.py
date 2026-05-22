@@ -403,6 +403,15 @@ def save_report(report: dict[str, Any]) -> None:
     print(f"Report: {rel(REPORT_PATH)}")
 
 
+def emit_health_snapshot_line(report: dict[str, Any]) -> None:
+    """Print a one-line ``HEALTH_SNAPSHOT_JSON: {...}`` payload for CI consumers."""
+    snapshot = report.get("session_health_snapshot")
+    if not isinstance(snapshot, dict) or not snapshot:
+        snapshot = {"health_status": "unknown"}
+    payload = json.dumps(snapshot, ensure_ascii=False, sort_keys=True)
+    print(f"HEALTH_SNAPSHOT_JSON: {payload}")
+
+
 SESSION_HISTORY_PATH = PROJECT_ROOT / "reports" / "session_history.json"
 
 
@@ -920,6 +929,11 @@ def main() -> int:
         type=int,
         default=None,
         help="CLI override for origin_session.health.degraded_failed_threshold (0-10000).",
+    )
+    parser.add_argument(
+        "--print-health",
+        action="store_true",
+        help="Print HEALTH_SNAPSHOT_JSON: <json> to stdout for shell/CI consumers.",
     )
     args = parser.parse_args()
 
@@ -1549,6 +1563,8 @@ def main() -> int:
             (origin_session_info.get("effective_settings") or {}).get("health"),
         )
         save_report(report)
+        if args.print_health:
+            emit_health_snapshot_line(report)
         return 0 if status in {"PASS", "PASS with warnings", "PASS with session_retry"} else 1
 
     except Exception as exc:  # noqa: BLE001 - print full traceback for automation failures
@@ -1583,6 +1599,8 @@ def main() -> int:
             (origin_session_info.get("effective_settings") or {}).get("health"),
         )
         save_report(report)
+        if args.print_health:
+            emit_health_snapshot_line(report)
         return 1
     finally:
         if op is not None:
