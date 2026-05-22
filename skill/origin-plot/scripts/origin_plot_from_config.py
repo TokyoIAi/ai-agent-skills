@@ -400,13 +400,24 @@ def update_session_history(report: dict[str, Any]) -> dict[str, Any]:
     """Append a session history entry and return the session_history report block."""
     from datetime import datetime, timezone
 
+    session = report.get("origin_session") or {}
+    effective = session.get("effective_settings") or {}
+    history_max_entries = effective.get("history_max_entries")
+    try:
+        history_max_entries = int(history_max_entries) if history_max_entries else 100
+    except (TypeError, ValueError):
+        history_max_entries = 100
+    if history_max_entries < 1 or history_max_entries > 10000:
+        history_max_entries = 100
+
     history_info: dict[str, Any] = {
         "path": rel(SESSION_HISTORY_PATH),
         "updated": False,
         "entry_count_after_update": 0,
+        "history_max_entries": history_max_entries,
+        "truncated": False,
         "warnings": [],
     }
-    session = report.get("origin_session") or {}
     entry = {
         "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "config": report.get("config_path") or "",
@@ -443,6 +454,9 @@ def update_session_history(report: dict[str, Any]) -> dict[str, Any]:
             history = []
 
     history.append(entry)
+    if len(history) > history_max_entries:
+        history = history[-history_max_entries:]
+        history_info["truncated"] = True
     try:
         SESSION_HISTORY_PATH.write_text(json.dumps(history, indent=2, ensure_ascii=False), encoding="utf-8")
         history_info["updated"] = True
@@ -945,6 +959,7 @@ def main() -> int:
         "kill_stale_origin_before_retry": True,
         "retry_delay_seconds": 2.0,
         "inject_session_error_once": False,
+        "history_max_entries": 100,
         "session_profile": None,
         "session_profile_settings": {},
         "cli_session_overrides": {},
@@ -1034,6 +1049,7 @@ def main() -> int:
                 "kill_stale_origin_before_retry": session_cfg["kill_stale_origin_before_retry"],
                 "retry_delay_seconds": session_cfg["retry_delay_seconds"],
                 "inject_session_error_once": session_cfg["inject_session_error_once"],
+                "history_max_entries": session_cfg.get("history_max_entries", 100),
                 "session_profile": session_profile_path,
                 "session_profile_settings": session_profile_settings,
                 "cli_session_overrides": dict(cli_session_overrides or {}),

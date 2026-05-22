@@ -132,6 +132,7 @@
         "kill_stale_origin_before_retry": true,
         "retry_delay_seconds": 2.0,
         "inject_session_error_once": false,
+        "history_max_entries": 100,
         "session_profile": null,
         "session_profile_settings": {},
         "cli_session_overrides": {},
@@ -140,7 +141,8 @@
           "max_retries": 1,
           "kill_stale_origin_before_retry": true,
           "retry_delay_seconds": 2.0,
-          "inject_session_error_once": false
+          "inject_session_error_once": false,
+          "history_max_entries": 100
         },
         "attempts": 1,
         "retry_used": false,
@@ -278,6 +280,7 @@
         "kill_stale_origin_before_retry": true,
         "retry_delay_seconds": 2.0,
         "inject_session_error_once": false,
+        "history_max_entries": 100,
         "session_profile": null,
         "session_profile_settings": {},
         "cli_session_overrides": {},
@@ -286,7 +289,8 @@
           "max_retries": 1,
           "kill_stale_origin_before_retry": true,
           "retry_delay_seconds": 2.0,
-          "inject_session_error_once": false
+          "inject_session_error_once": false,
+          "history_max_entries": 100
         },
         "attempts": 1,
         "retry_used": false,
@@ -348,6 +352,16 @@
     "final_session_status_counts": {
       "ok": 2
     }
+  },
+  "session_history_summary": {
+    "history_path": "reports\\session_history.json",
+    "entries_seen": 14,
+    "recent_window": 20,
+    "recent_ok": 10,
+    "recent_ok_after_retry": 4,
+    "recent_failed": 0,
+    "recent_injection_triggered": 4,
+    "health_status": "degraded"
   },
   "manual_intervention": {
     "policy": "GUI dialog auto-clicking is intentionally not implemented.",

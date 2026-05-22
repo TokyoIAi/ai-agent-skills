@@ -112,6 +112,9 @@ def test_merge_rejects_invalid_values() -> None:
         ({"retry_delay_seconds": 999}, "retry_delay_seconds above range"),
         ({"retry_on_com_error": "yes"}, "retry_on_com_error wrong type"),
         ({"inject_session_error_once": 1}, "inject_session_error_once wrong type"),
+        ({"history_max_entries": -5}, "history_max_entries below range"),
+        ({"history_max_entries": 999999}, "history_max_entries above range"),
+        ({"history_max_entries": "abc"}, "history_max_entries wrong type"),
     ]
     for payload, description in bad_inputs:
         try:
@@ -121,6 +124,48 @@ def test_merge_rejects_invalid_values() -> None:
         raise AssertionError(f"merge should have rejected {description}: {payload!r}")
 
 
+def test_history_max_entries_default_and_fallback() -> None:
+    # Default should be 100.
+    merged = merge_session_settings(None, None, None)
+    assert_true(
+        merged["history_max_entries"] == 100,
+        f"default history_max_entries should be 100, got {merged.get('history_max_entries')}",
+    )
+    # None or 0 should fall back to 100 silently.
+    fallback_none = merge_session_settings(None, {"history_max_entries": None}, None)
+    assert_true(
+        fallback_none["history_max_entries"] == 100,
+        f"history_max_entries=None should fall back to 100, got {fallback_none['history_max_entries']}",
+    )
+    fallback_zero = merge_session_settings(None, {"history_max_entries": 0}, None)
+    assert_true(
+        fallback_zero["history_max_entries"] == 100,
+        f"history_max_entries=0 should fall back to 100, got {fallback_zero['history_max_entries']}",
+    )
+
+
+def test_history_max_entries_priority() -> None:
+    profile = {"history_max_entries": 50}
+    explicit = {"history_max_entries": 75}
+    cli = {"history_max_entries": 200}
+
+    merged_profile = merge_session_settings(profile, None, None)
+    assert_true(
+        merged_profile["history_max_entries"] == 50,
+        "profile history_max_entries not honored",
+    )
+    merged_explicit = merge_session_settings(profile, explicit, None)
+    assert_true(
+        merged_explicit["history_max_entries"] == 75,
+        "explicit history_max_entries should override profile",
+    )
+    merged_cli = merge_session_settings(profile, explicit, cli)
+    assert_true(
+        merged_cli["history_max_entries"] == 200,
+        "CLI history_max_entries should override explicit and profile",
+    )
+
+
 def run_all() -> int:
     tests = [
         test_classifier_recognizes_session_errors,
@@ -128,6 +173,8 @@ def run_all() -> int:
         test_merge_priority_profile_explicit_cli,
         test_merge_uses_defaults_when_inputs_empty,
         test_merge_rejects_invalid_values,
+        test_history_max_entries_default_and_fallback,
+        test_history_max_entries_priority,
     ]
     failed = 0
     for test in tests:

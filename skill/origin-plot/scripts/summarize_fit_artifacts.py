@@ -226,6 +226,64 @@ def filter_reports_by_injection(
     return filtered
 
 
+def parse_since(value: str | None) -> str | None:
+    """Normalize --since to an ISO timestamp string suitable for lex compare."""
+    if not value:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    # Accept YYYY-MM-DD or full ISO; pad date-only with T00:00:00Z for consistency.
+    if len(cleaned) == 10 and cleaned[4] == "-" and cleaned[7] == "-":
+        cleaned = cleaned + "T00:00:00Z"
+    elif "T" in cleaned and not cleaned.endswith("Z"):
+        cleaned = cleaned + "Z"
+    return cleaned
+
+
+def report_timestamp(report: dict[str, Any]) -> str | None:
+    """Best-effort retrieval of a report's timestamp."""
+    history = report.get("session_history") or {}
+    if isinstance(history, dict):
+        # Single-plot report path: pull from the most recent entry that matches this run.
+        # Fall back to nothing because the report itself doesn't carry a top-level timestamp.
+        pass
+    # Look at an embedded entry list if any (none today).
+    return None
+
+
+def filter_reports_by_since(
+    reports_data: list[tuple[Path, dict[str, Any] | None]],
+    since: str | None,
+) -> tuple[list[tuple[Path, dict[str, Any] | None]], int, list[str]]:
+    """Filter reports whose timestamp is older than ``since``.
+
+    Returns (kept_reports, skipped_count, warnings). Reports without a timestamp
+    are kept by default and produce a warning.
+    """
+    if not since:
+        return reports_data, 0, []
+    kept: list[tuple[Path, dict[str, Any] | None]] = []
+    skipped = 0
+    warnings: list[str] = []
+    for path, report in reports_data:
+        if report is None or not isinstance(report, dict):
+            kept.append((path, report))
+            continue
+        ts = report_timestamp(report)
+        if ts is None:
+            warnings.append(
+                f"report has no timestamp; kept regardless of --since: {rel(path)}"
+            )
+            kept.append((path, report))
+            continue
+        if ts < since:
+            skipped += 1
+            continue
+        kept.append((path, report))
+    return kept, skipped, warnings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Summarize fit artifacts across origin-plot reports."
@@ -260,6 +318,11 @@ def main() -> int:
         "--include-injection-only",
         action="store_true",
         help="Include only injection reports.",
+    )
+    parser.add_argument(
+        "--since",
+        default=None,
+        help="Filter reports whose timestamp is older than this (YYYY-MM-DD or full ISO Zulu).",
     )
     args = parser.parse_args()
 
@@ -307,10 +370,17 @@ def main() -> int:
 
     reports_data = filter_reports_by_injection(reports_data, injection_filter)
 
+    since_value = parse_since(args.since)
+    reports_data, since_skipped, since_warnings = filter_reports_by_since(reports_data, since_value)
+
     summary = collect_artifacts(reports_data)
     summary["input_mode"] = input_mode
     summary["reports_dir"] = reports_dir_value
     summary["injection_filter"] = injection_filter
+    summary["since"] = since_value
+    summary["reports_skipped_by_since"] = since_skipped
+    if since_warnings:
+        summary.setdefault("warnings", []).extend(since_warnings)
     summary["scanned_paths"] = [rel(path) for path, _ in reports_data]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

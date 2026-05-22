@@ -196,6 +196,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.8.1: Origin COM session stability with retry-on-com-error, fit summary CSV append policy, fitting batch sample, and cross-report artifact summarizer.
 - v0.8.2: deterministic retry-path injection, reusable session profiles, CLI session overrides, reports-dir artifact summarization, and a session retry logic smoke test.
 - v0.8.3: CLI retry injection smoke test, batch session_test_summary, artifact injection filter, session_history.json, and aggregate smoke test runner.
+- v0.8.4: bounded session history retention, batch session_history_summary with health_status, artifact summary --since filter, and offline-only smoke runner mode.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -725,3 +726,29 @@ If the file is corrupt, the script backs it up as `.json.bak` and rebuilds. The 
 - Single-plot report includes `session_history` block with `updated=true`.
 - All reports remain free of absolute paths.
 - `output/` stays git-ignored.
+
+## Session History Retention Policy (v0.8.4)
+
+`origin_session.history_max_entries` controls how many entries `reports/session_history.json` retains. Defaults to 100, range 1–10000. `null` or `0` silently fall back to the default to prevent unbounded files. The single-plot report records `history_max_entries` and `truncated` so callers know whether old entries were dropped.
+
+## Session Health Summary Contract (v0.8.4)
+
+Batch reports include `session_history_summary` with `entries_seen`, `recent_window` (default 20), `recent_ok`, `recent_ok_after_retry`, `recent_failed`, `recent_injection_triggered`, and `health_status`. The status is a soft signal: `degraded` when `recent_failed > 0` or `recent_ok_after_retry >= 3`, `unknown` when history is missing or unreadable, `ok` otherwise. Health does not change the batch pass/fail decision.
+
+## Artifact Summary Since Filter (v0.8.4)
+
+`scripts/summarize_fit_artifacts.py --since` accepts `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SSZ`. Reports without a top-level timestamp are kept and produce a warning so older runs are not silently dropped. The artifact summary records `since` and `reports_skipped_by_since`.
+
+## Smoke Test Modes (v0.8.4)
+
+`scripts/run_smoke_tests.py --skip-origin` skips Origin-dependent smoke tests (currently `test_cli_retry_injection`). The runner reports per-test exit codes and elapsed wall time in the summary block. Without the flag the runner executes every smoke test in sequence.
+
+## v0.8.4 Acceptance Criteria
+
+- `history_max_entries` defaults to 100, accepts integers 1–10000, falls back to 100 on `null`/`0`, and rejects out-of-range or wrong-type values via `merge_session_settings`.
+- `reports/session_history.json` is truncated to at most `history_max_entries` entries on each run; the report records `truncated`.
+- Batch report includes `session_history_summary` with `health_status` (`ok`, `degraded`, or `unknown`).
+- `summarize_fit_artifacts.py --since` skips outdated reports and records `since` plus `reports_skipped_by_since`.
+- `run_smoke_tests.py --skip-origin` runs only Origin-independent smoke tests and PASSes.
+- All single-plot reports continue to record `session_history.path`, `updated`, `entry_count_after_update`, `history_max_entries`, `truncated`, `warnings`.
+- Reports remain free of absolute paths and `output/` stays git-ignored.

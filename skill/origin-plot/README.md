@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.3.
+Current version: v0.8.4.
 
 ## Supported formats
 
@@ -589,6 +589,78 @@ The single-plot report includes:
 ```
 
 Streaks of `ok_after_retry` or `failed` entries in the history can flag a degrading Origin installation before it becomes a blocking failure.
+
+## v0.8.4 Session History Health
+
+v0.8.4 turns the v0.8.3 session history into a usable health observation: history grows with bounded retention, batch reports surface a recent-window health summary, the artifact summarizer can drop old reports via `--since`, and the smoke runner has an offline-only mode.
+
+### `history_max_entries`
+
+```yaml
+origin_session:
+  history_max_entries: 100
+```
+
+Defaults to 100. Range: 1–10000. `null` or `0` falls back to 100 silently to avoid unbounded files. The single-plot report records:
+
+```json
+"session_history": {
+  "path": "reports/session_history.json",
+  "updated": true,
+  "entry_count_after_update": 100,
+  "history_max_entries": 100,
+  "truncated": true,
+  "warnings": []
+}
+```
+
+`truncated=true` means the file was longer than the limit and the oldest entries were dropped before write. The merge priority for `history_max_entries` is the same as the rest of `origin_session`: defaults < session profile < `origin_session` block < CLI overrides.
+
+### Batch `session_history_summary`
+
+The batch report adds:
+
+```json
+"session_history_summary": {
+  "history_path": "reports/session_history.json",
+  "entries_seen": 10,
+  "recent_window": 20,
+  "recent_ok": 7,
+  "recent_ok_after_retry": 3,
+  "recent_failed": 0,
+  "recent_injection_triggered": 3,
+  "health_status": "degraded"
+}
+```
+
+`health_status` rules:
+
+- `degraded` if any of the recent entries is `failed`, OR if `recent_ok_after_retry >= 3`.
+- `unknown` if `reports/session_history.json` is missing or unreadable.
+- `ok` otherwise.
+
+The health status is a soft signal. Batch jobs themselves still PASS as long as Origin produces the requested artifacts.
+
+### Artifact summary `--since`
+
+```powershell
+py scripts\summarize_fit_artifacts.py --reports-dir reports --exclude-injection --since 2000-01-01
+```
+
+`--since` accepts `YYYY-MM-DD` or full `YYYY-MM-DDTHH:MM:SSZ`. Reports without a top-level timestamp (current single-plot and batch reports) are kept by default and produce a warning. The artifact summary records `since` and `reports_skipped_by_since`.
+
+### Smoke test modes
+
+```powershell
+py scripts\run_smoke_tests.py             # full local acceptance, requires Origin
+py scripts\run_smoke_tests.py --skip-origin   # offline-only smoke tests
+```
+
+`--skip-origin` skips tests marked as requiring an Origin install (currently `test_cli_retry_injection`). The runner prints per-test exit codes and elapsed times in the summary block.
+
+### Why session history is observation, not pass/fail
+
+Session history is collected for trend analysis. A run with `health_status: degraded` does not flip the plot's status; a degraded health tells the operator to investigate the Origin install. The plot status is still `PASS`, `PASS with warnings`, `PASS with session_retry`, `PARTIAL PASS`, or `FAIL` based on actual artifacts and Origin pipeline outcomes. Only history-write-side failures land in `session_history.warnings`; they do not block plotting.
 
 ## YAML fields
 

@@ -31,6 +31,7 @@ SESSION_FIELDS = (
     "kill_stale_origin_before_retry",
     "retry_delay_seconds",
     "inject_session_error_once",
+    "history_max_entries",
 )
 
 
@@ -41,6 +42,7 @@ def session_defaults() -> dict[str, Any]:
         "kill_stale_origin_before_retry": True,
         "retry_delay_seconds": 2.0,
         "inject_session_error_once": False,
+        "history_max_entries": 100,
     }
 
 
@@ -79,6 +81,19 @@ def _coerce_session_dict(source: dict[str, Any], context: str) -> dict[str, Any]
         if not isinstance(value, bool):
             raise ValueError(f"{context}.inject_session_error_once must be a boolean.")
         coerced["inject_session_error_once"] = bool(value)
+    if "history_max_entries" in source:
+        raw_value = source["history_max_entries"]
+        # Accept None / 0 with a fallback to default to avoid unbounded growth.
+        if raw_value is None or raw_value == 0:
+            coerced["history_max_entries"] = 100
+        else:
+            try:
+                value = int(raw_value)
+            except (TypeError, ValueError):
+                raise ValueError(f"{context}.history_max_entries must be an integer.") from None
+            if value < 1 or value > 10000:
+                raise ValueError(f"{context}.history_max_entries must be between 1 and 10000.")
+            coerced["history_max_entries"] = int(value)
     return coerced
 
 

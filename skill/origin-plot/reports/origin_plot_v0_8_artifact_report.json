@@ -1,10 +1,10 @@
 {
   "status": "PASS",
-  "reports_scanned": 2,
+  "reports_scanned": 3,
   "reports_unreadable": [],
-  "fit_models_seen": 2,
-  "annotations_requested": 2,
-  "annotations_applied": 2,
+  "fit_models_seen": 3,
+  "annotations_requested": 3,
+  "annotations_applied": 3,
   "summary_csv_outputs": [
     {
       "path": "reports\\fitting_summary_linear.csv",
@@ -49,12 +49,19 @@
       "pdf_exists": true
     }
   ],
-  "warnings": [],
+  "warnings": [
+    "report has no timestamp; kept regardless of --since: reports\\origin_plot_v0_2_report.json",
+    "report has no timestamp; kept regardless of --since: reports\\origin_plot_v0_3_batch_report.json",
+    "report has no timestamp; kept regardless of --since: reports\\origin_plot_v0_4_scan_report.json"
+  ],
   "missing_artifacts": [],
   "input_mode": "reports_dir",
   "reports_dir": "reports",
   "injection_filter": "exclude_injection",
+  "since": "2000-01-01T00:00:00Z",
+  "reports_skipped_by_since": 0,
   "scanned_paths": [
+    "reports\\origin_plot_v0_2_report.json",
     "reports\\origin_plot_v0_3_batch_report.json",
     "reports\\origin_plot_v0_4_scan_report.json"
   ]

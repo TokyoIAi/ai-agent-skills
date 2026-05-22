@@ -376,6 +376,53 @@ def session_test_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def session_history_summary(recent_window: int = 20) -> dict[str, Any]:
+    """Read reports/session_history.json and summarize recent health."""
+    history_path = PROJECT_ROOT / "reports" / "session_history.json"
+    summary: dict[str, Any] = {
+        "history_path": rel(history_path),
+        "entries_seen": 0,
+        "recent_window": int(recent_window),
+        "recent_ok": 0,
+        "recent_ok_after_retry": 0,
+        "recent_failed": 0,
+        "recent_injection_triggered": 0,
+        "health_status": "unknown",
+    }
+    if not history_path.exists():
+        return summary
+    try:
+        raw = history_path.read_text(encoding="utf-8")
+        entries = json.loads(raw)
+    except (OSError, json.JSONDecodeError):
+        return summary
+    if not isinstance(entries, list):
+        return summary
+
+    summary["entries_seen"] = len(entries)
+    recent = entries[-int(recent_window):] if recent_window > 0 else []
+    for entry in recent:
+        if not isinstance(entry, dict):
+            continue
+        fss = str(entry.get("final_session_status") or "")
+        if fss == "ok":
+            summary["recent_ok"] += 1
+        elif fss == "ok_after_retry":
+            summary["recent_ok_after_retry"] += 1
+        elif fss == "failed":
+            summary["recent_failed"] += 1
+        if entry.get("injection_triggered"):
+            summary["recent_injection_triggered"] += 1
+
+    if summary["recent_failed"] > 0:
+        summary["health_status"] = "degraded"
+    elif summary["recent_ok_after_retry"] >= 3:
+        summary["health_status"] = "degraded"
+    else:
+        summary["health_status"] = "ok"
+    return summary
+
+
 def restore_single_report(original_text: str | None) -> None:
     if original_text is None:
         return
@@ -445,6 +492,7 @@ def main() -> int:
         "fit_artifact_summary": fit_artifact_summary(results),
         "origin_session_summary": origin_session_summary(results),
         "session_test_summary": session_test_summary(results),
+        "session_history_summary": session_history_summary(),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,

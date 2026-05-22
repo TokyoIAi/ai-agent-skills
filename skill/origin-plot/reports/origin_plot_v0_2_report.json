@@ -1,5 +1,5 @@
 {
-  "status": "PASS with session_retry",
+  "status": "PASS",
   "config_path": "configs\\fitting\\linear_fit_config.yaml",
   "input_file": "data\\fit_sample.csv",
   "detected_format": "csv",
@@ -127,32 +127,27 @@
   "origin_session": {
     "retry_on_com_error": true,
     "max_retries": 1,
-    "kill_stale_origin_before_retry": false,
-    "retry_delay_seconds": 1.0,
-    "inject_session_error_once": true,
+    "kill_stale_origin_before_retry": true,
+    "retry_delay_seconds": 2.0,
+    "inject_session_error_once": false,
+    "history_max_entries": 100,
     "session_profile": null,
     "session_profile_settings": {},
-    "cli_session_overrides": {
-      "max_retries": 1,
-      "retry_delay_seconds": 1.0,
-      "kill_stale_origin_before_retry": false,
-      "inject_session_error_once": true
-    },
+    "cli_session_overrides": {},
     "effective_settings": {
       "retry_on_com_error": true,
       "max_retries": 1,
-      "kill_stale_origin_before_retry": false,
-      "retry_delay_seconds": 1.0,
-      "inject_session_error_once": true
+      "kill_stale_origin_before_retry": true,
+      "retry_delay_seconds": 2.0,
+      "inject_session_error_once": false,
+      "history_max_entries": 100
     },
-    "attempts": 2,
-    "retry_used": true,
+    "attempts": 1,
+    "retry_used": false,
     "stale_origin_killed": false,
-    "injection_triggered": true,
-    "session_errors": [
-      "attempt 1: origin_session_utils.InjectedSessionError: Injected test OriginExt ApplicationBase_LT_execute 无效指针"
-    ],
-    "final_session_status": "ok_after_retry"
+    "injection_triggered": false,
+    "session_errors": [],
+    "final_session_status": "ok"
   },
   "manual_intervention": {
     "user_reported_manual_ok": true,
@@ -165,7 +160,9 @@
   "session_history": {
     "path": "reports\\session_history.json",
     "updated": true,
-    "entry_count_after_update": 7,
+    "entry_count_after_update": 12,
+    "history_max_entries": 100,
+    "truncated": false,
     "warnings": []
   }
 }
