@@ -9,10 +9,14 @@ uploaded by default.
 
 | Skill | Path | Status | Purpose |
 |---|---|---|---|
-| origin-plot | [`skill/origin-plot/`](skill/origin-plot/) | v1.0.1 Core Execution Backend | Stable Origin / OriginPro plot execution backend for canonical data + YAML configs. |
+| origin-plot | [`skill/origin-plot/`](skill/origin-plot/) | v1.0.2 Documentation Map Patch on the v1.0.1 Core Execution Backend (agent onboarding refresh in v1.0.3) | Stable Origin / OriginPro plot execution backend for canonical data + YAML configs. |
 
 For setup, daily commands, the data-handling boundary with Codex, and the
 directory map, read [`skill/origin-plot/README.md`](skill/origin-plot/README.md).
+For agent-specific operating guides, read
+[`skill/origin-plot/AGENT_USAGE.md`](skill/origin-plot/AGENT_USAGE.md),
+[`skill/origin-plot/CODEX.md`](skill/origin-plot/CODEX.md), and
+[`skill/origin-plot/CLAUDE.md`](skill/origin-plot/CLAUDE.md).
 
 ## Branch and tag conventions
 

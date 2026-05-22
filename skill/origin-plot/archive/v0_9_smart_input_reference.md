@@ -109,5 +109,5 @@ landing place is a sibling Skill, never `skill/origin-plot/`.
   changed and what it deliberately did not change.
 - `contracts/codex_data_wrangler_contract.md` — the canonical interface
   between Codex and `origin-plot`.
-- `archive/v0_8_7_full_stack/README.md` — documentation anchor for the
+- [`skill/origin-plot/archive/v0_8_7_full_stack/README.md`](v0_8_7_full_stack/README.md) — documentation anchor for the
   v0.8.7 implementation that v1.0 keeps verbatim under `scripts/`.

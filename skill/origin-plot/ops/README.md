@@ -28,10 +28,12 @@ the legacy entry surface in `scripts/` is preserved.
 The v1.0 refactor made the public surface live in `workflows/` while
 keeping the verified v0.8.7 implementation in `scripts/` unchanged.
 `ops/` documents the maintenance side of that surface in a categorised
-form so links from `README.md` and `DIRECTORY.md` are stable. Under the
-hood, every shim invokes the matching legacy script via `runpy` (Python)
-or by passing `@args` (PowerShell / bash); behaviour and exit codes
-match the legacy invocation byte-for-byte.
+form so links from
+[`skill/origin-plot/README.md`](../README.md) and
+[`skill/origin-plot/DIRECTORY.md`](../DIRECTORY.md) are stable. Under
+the hood, every shim invokes the matching legacy script via `runpy`
+(Python) or by passing `@args` (PowerShell / bash); behaviour and exit
+codes match the legacy invocation byte-for-byte.
 
 ## When to use what
 

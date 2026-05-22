@@ -5,50 +5,90 @@ description: Use this skill when the task involves generating scientific plots w
 
 # Origin Plot
 
-## v1.0.1 core surface (read first)
+## v1.0.3 current public surface (read first)
 
 origin-plot is a stable Origin / OriginPro plot execution backend for
-canonical data and YAML configs. It is **not** a data understanding tool.
+canonical data and YAML configs. It is **not** a data understanding
+tool. v1.0.1 froze the public Python surface; v1.0.2 added the
+documentation map; v1.0.3 layered agent onboarding guides on top. The
+Origin execution surface has not changed since v1.0.1.
 
-- Daily entry points live in [`workflows/`](../../../workflows/):
-  - `py workflows\run_plot.py --config configs\examples\line_plot.yaml`
-  - `py workflows\run_batch.py --batch-config configs\examples\batch.yaml`
-  - `py workflows\accept_core.py` for the minimal acceptance suite.
-- Codex (or any equivalent caller) must clean upstream data and write the
-  canonical CSV / XLSX before invoking the workflow. The contract lives in
-  [`contracts/codex_data_wrangler_contract.md`](../../../contracts/codex_data_wrangler_contract.md).
-- Maintenance tooling (smoke tests, session health, hygiene scans, release
-  guards) lives under [`ops/`](../../../ops/). None of those are required
-  for daily plotting.
-- The verified v0.8.7 implementation still ships in
-  [`scripts/`](../../../scripts/). `core/` and `ops/` delegate to it; we
-  have **not** rewritten the Origin control logic.
-- `output/` is generated and git-ignored.
-  [`reports/report_package/`](../../../reports/report_package/) is the
-  primary deliverable and must remain free of absolute local paths
-  (`H:\`, `C:\`, `E:\`, `/mnt/`).
-- v0.9 smart-input experiments are intentionally not part of v1.0+; Codex
-  owns that responsibility.
+### Documentation entry points
 
-For navigation:
+Read these in order. Every path is full and unambiguous.
 
-- [`README.md`](../../../README.md) — what origin-plot is and is not, the
-  daily commands, the Codex workflow, and the directory map.
-- [`DIRECTORY.md`](../../../DIRECTORY.md) — one-line description of every
-  top-level directory plus where each audience should start.
-- [`contracts/README.md`](../../../contracts/README.md) — the Codex
-  contract layer with minimal canonical CSV and YAML examples.
+1. [`skill/origin-plot/README.md`](../../../README.md) — what
+   origin-plot is, what it is not, the daily commands, the Codex
+   workflow, the directory map, and the canonical documentation map.
+2. [`skill/origin-plot/DIRECTORY.md`](../../../DIRECTORY.md) — one-line
+   description of every top-level directory plus where each audience
+   should start.
+3. [`skill/origin-plot/AGENT_USAGE.md`](../../../AGENT_USAGE.md) —
+   shared agent guide (boundary, do-not-do list, standard workflow,
+   validation checklist, failure policy).
+4. [`skill/origin-plot/CODEX.md`](../../../CODEX.md) — Codex-specific
+   operating guide (engineering execution, canonical config templates,
+   batch command, maintenance commands).
+5. [`skill/origin-plot/CLAUDE.md`](../../../CLAUDE.md) — Claude-specific
+   operating guide (planning posture, do-not-expand-scope list,
+   file-type handling rules, final report format).
+6. [`skill/origin-plot/AGENT_ONBOARDING_TEST.md`](../../../AGENT_ONBOARDING_TEST.md)
+   — the 60-second comprehension test new agents must pass.
+7. [`skill/origin-plot/contracts/README.md`](../../../contracts/README.md)
+   — the Codex contract layer with minimal canonical CSV and YAML
+   examples.
 
-For the full landing record:
+### Boundary
 
-- [`archive/v1_0_scope_clarification.md`](../../../archive/v1_0_scope_clarification.md)
+- **Codex / Claude** owns data understanding (Excel sheet detection,
+  header detection, image / Markdown / OCR ingestion, intent capture,
+  graph-type choice). They write the canonical CSV / XLSX and the
+  explicit plot YAML.
+- **origin-plot** validates the explicit YAML and drives Origin /
+  OriginPro to produce PNG / PDF / OPJU plus the
+  [`skill/origin-plot/reports/report_package/`](../../../reports/report_package/)
+  bundle. It never infers, never retries messy input, and never
+  invokes GUI automation.
+
+### Daily commands (run from `skill/origin-plot/`)
+
+```powershell
+py workflows\run_plot.py --config configs\examples\line_plot.yaml
+py workflows\run_batch.py --batch-config configs\examples\batch.yaml
+py workflows\accept_core.py
+```
+
+### Hard guarantees
+
+- The verified v0.8.7 implementation still lives in
+  [`skill/origin-plot/scripts/`](../../../scripts/) and remains the
+  source of truth for Origin control.
+  [`skill/origin-plot/core/`](../../../core/) is a **façade**, not a
+  re-implementation; `core/origin_executor.py` shells out to
+  `scripts/origin_plot_from_config.py`.
+- [`skill/origin-plot/output/`](../../../output/) is generated and
+  git-ignored.
+  [`skill/origin-plot/reports/report_package/`](../../../reports/report_package/)
+  is the primary deliverable and must remain free of absolute local
+  paths (`H:\`, `C:\`, `E:\`, `/mnt/`).
+- v0.9 smart-input is preserved by tag and archive branch only; it is
+  **not** in the v1.0 mainline. See
+  [`skill/origin-plot/archive/v0_9_smart_input_reference.md`](../../../archive/v0_9_smart_input_reference.md).
+
+### Non-goals
+
+- OCR; handwriting recognition; image / photo / screenshot data
+  extraction; smart column-role inference; automatic graph-type
+  recommendation; Excel sheet / header auto-detection; guessing user
+  intent. Full list and tier-B gating rules:
+  [`skill/origin-plot/contracts/non_goals.md`](../../../contracts/non_goals.md).
+
+### Full landing record
+
+- [`skill/origin-plot/archive/v1_0_scope_clarification.md`](../../../archive/v1_0_scope_clarification.md)
   documents what v1.0 actually changed: it is a public surface refactor;
-  `core/` is still a façade over the verified v0.8.7 implementation in
-  `scripts/`. Full internalization belongs to v1.1+.
-- [`contracts/non_goals.md`](../../../contracts/non_goals.md) lists hard
-  non-goals and the tier-B features that may land later under explicit
-  canonical contracts only.
-- [`archive/v0_9_smart_input_reference.md`](../../../archive/v0_9_smart_input_reference.md)
+  full internalization of `scripts/` belongs to v1.1+.
+- [`skill/origin-plot/archive/v0_9_smart_input_reference.md`](../../../archive/v0_9_smart_input_reference.md)
   documents where v0.9 lives now and how to inspect it without
   reintroducing it.
 

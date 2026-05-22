@@ -9,6 +9,10 @@ it, when to start there.
 skill/origin-plot/
 ├── README.md                      # start here
 ├── DIRECTORY.md                   # you are here
+├── AGENT_USAGE.md                 # shared agent guide (v1.0.3)
+├── CODEX.md                       # Codex-specific operating guide (v1.0.3)
+├── CLAUDE.md                      # Claude-specific operating guide (v1.0.3)
+├── AGENT_ONBOARDING_TEST.md       # 60-second comprehension test (v1.0.3)
 ├── requirements.txt               # Python deps for the v0.8.7 backend
 │
 ├── core/                          # v1.0 Python façade over scripts/
@@ -44,6 +48,8 @@ skill/origin-plot/
 │   └── v1_0_scope_clarification.md
 ├── reports/
 │   └── report_package/            # primary deliverable after every run
+├── reports_or_notes/              # human-readable notes and simulations (v1.0.3)
+│   └── agent_onboarding_simulation.md
 ├── output/                        # generated exports (NEVER commit)
 └── .agents/skills/origin-plot/SKILL.md   # the Skill metadata file
 ```
@@ -52,10 +58,11 @@ skill/origin-plot/
 
 | Audience | Start here |
 |---|---|
-| Daily users (just plot something) | [`workflows/README.md`](workflows/README.md) |
-| Codex / Claude (handle messy data and emit canonical CSV + YAML) | [`contracts/README.md`](contracts/README.md) |
-| Advanced maintainers (smoke tests, health, hygiene, release) | [`ops/README.md`](ops/README.md) |
-| Historians (why things are where they are) | [`archive/README.md`](archive/README.md) |
+| Daily users (just plot something) | [`skill/origin-plot/workflows/README.md`](workflows/README.md) |
+| Codex / Claude (handle messy data and emit canonical CSV + YAML) | [`skill/origin-plot/contracts/README.md`](contracts/README.md) |
+| Fresh agent (any role) onboarding | [`skill/origin-plot/AGENT_USAGE.md`](AGENT_USAGE.md), then [`skill/origin-plot/CODEX.md`](CODEX.md) or [`skill/origin-plot/CLAUDE.md`](CLAUDE.md), then [`skill/origin-plot/AGENT_ONBOARDING_TEST.md`](AGENT_ONBOARDING_TEST.md) |
+| Advanced maintainers (smoke tests, health, hygiene, release) | [`skill/origin-plot/ops/README.md`](ops/README.md) |
+| Historians (why things are where they are) | [`skill/origin-plot/archive/README.md`](archive/README.md) |
 
 **Do not start from `scripts/`** unless you are debugging the legacy
 backend. The v0.8.7 implementation under `scripts/` is the source of
@@ -76,7 +83,7 @@ Thin Python layer that wraps the verified v0.8.7 backend.
   `scripts/origin_plot_from_config.py`.
 
 This is a v1.0 **façade**, not a re-implementation. See
-[`archive/v1_0_scope_clarification.md`](archive/v1_0_scope_clarification.md).
+[`skill/origin-plot/archive/v1_0_scope_clarification.md`](archive/v1_0_scope_clarification.md).
 
 ### `workflows/`
 
@@ -88,7 +95,7 @@ Public CLIs. This is where daily users start.
 - `build_report_package.py` — rebuild `reports/report_package/` from a
   legacy single-plot report.
 
-See [`workflows/README.md`](workflows/README.md).
+See [`skill/origin-plot/workflows/README.md`](workflows/README.md).
 
 ### `contracts/`
 
@@ -99,7 +106,7 @@ Read-only documentation that defines the Codex ↔ origin-plot boundary.
 - `codex_data_wrangler_contract.md` — what Codex must do upstream.
 - `non_goals.md` — hard non-goals + tier-B candidates with gating rules.
 
-See [`contracts/README.md`](contracts/README.md).
+See [`skill/origin-plot/contracts/README.md`](contracts/README.md).
 
 ### `configs/`
 
@@ -134,7 +141,7 @@ scans, release-time guards, cross-report rollups. Each script is a thin
 re-export of a `scripts/...` module. None of this is required for daily
 plotting.
 
-See [`ops/README.md`](ops/README.md).
+See [`skill/origin-plot/ops/README.md`](ops/README.md).
 
 ### `archive/`
 
@@ -148,14 +155,44 @@ Documentation anchors only. Nothing in `archive/` runs.
 - `archive/v1_0_scope_clarification.md` documents that v1.0 was a
   public surface refactor, not a re-implementation.
 
-See [`archive/README.md`](archive/README.md).
+See [`skill/origin-plot/archive/README.md`](archive/README.md).
+
+### Top-level agent docs (added in v1.0.3)
+
+The four Markdown files at the root of `skill/origin-plot/` form the
+agent onboarding layer:
+
+- [`skill/origin-plot/AGENT_USAGE.md`](AGENT_USAGE.md) — shared agent
+  guide. Read first.
+- [`skill/origin-plot/CODEX.md`](CODEX.md) — Codex-specific operating
+  guide.
+- [`skill/origin-plot/CLAUDE.md`](CLAUDE.md) — Claude-specific operating
+  guide.
+- [`skill/origin-plot/AGENT_ONBOARDING_TEST.md`](AGENT_ONBOARDING_TEST.md)
+  — 60-second comprehension test.
+
+These files are documentation only. They do not change behaviour, do not
+ship code, and do not extend the YAML schema. They tell agents how to
+use the existing public surface.
+
+### `reports_or_notes/`
+
+Human-readable notes and worked examples added in v1.0.3.
+
+- [`skill/origin-plot/reports_or_notes/agent_onboarding_simulation.md`](reports_or_notes/agent_onboarding_simulation.md)
+  — Claude simulating a fresh agent answering the eight-question
+  onboarding test using only the v1.0.3 documentation.
+
+This directory is for documentation artifacts. It is **not** the
+deliverable directory; the deliverable lives in
+[`skill/origin-plot/reports/report_package/`](reports/report_package/).
 
 ### `reports/`
 
 Generated reports. The committable subset is documented in
-[`README.md`](README.md) and the path leak scanner enforces the rule
-about absolute paths. `reports/report_package/` is the primary
-deliverable for every workflow run.
+[`skill/origin-plot/README.md`](README.md) and the path leak scanner
+enforces the rule about absolute paths. `reports/report_package/` is the
+primary deliverable for every workflow run.
 
 ### `output/`
 
@@ -179,4 +216,24 @@ git worktree add ../origin-plot-v0.9-view v0.9-origin-plot-smart-input
 ```
 
 Do not `git checkout` v0.9 paths into the v1.0 working tree. See
-[`archive/v0_9_smart_input_reference.md`](archive/v0_9_smart_input_reference.md).
+[`skill/origin-plot/archive/v0_9_smart_input_reference.md`](archive/v0_9_smart_input_reference.md).
+
+## Layering reminder
+
+- The **agent docs** at the root of `skill/origin-plot/`
+  ([`AGENT_USAGE.md`](AGENT_USAGE.md), [`CODEX.md`](CODEX.md),
+  [`CLAUDE.md`](CLAUDE.md), [`AGENT_ONBOARDING_TEST.md`](AGENT_ONBOARDING_TEST.md))
+  are for **onboarding**. They explain the boundary, the standard
+  workflow, and the never-do list. They do not redefine the contract.
+- The **canonical contract** lives in
+  [`skill/origin-plot/contracts/`](contracts/README.md). When the
+  agent docs and the contracts disagree about a schema field, the
+  contracts win. Schema changes only happen with an explicit contract
+  revision.
+- The **daily entry surface** is
+  [`skill/origin-plot/workflows/`](workflows/README.md). Agents call
+  `workflows\run_plot.py` and `workflows\run_batch.py`, never
+  `scripts/origin_plot_from_config.py` directly.
+- [`skill/origin-plot/scripts/`](scripts/) is the **legacy** verified
+  implementation and is the source of truth for Origin control. Treat
+  it as frozen unless you are debugging a v0.8.x backend issue.

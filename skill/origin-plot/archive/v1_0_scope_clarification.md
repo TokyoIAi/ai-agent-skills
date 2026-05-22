@@ -24,7 +24,8 @@ A **public surface refactor**. The new layout adds:
   smart-input experiment.
 - `data/raw/`, `data/cleaned/` — drop-points for Codex's data wrangling
   workflow.
-- Updated `README.md` and `SKILL.md`.
+- Updated `skill/origin-plot/README.md` and
+  `skill/origin-plot/.agents/skills/origin-plot/SKILL.md`.
 
 ## What v1.0-core-refactor is not
 
@@ -98,8 +99,8 @@ usage for at least one cycle.
 
 ## Cross-links
 
-- `archive/v0_8_7_full_stack/README.md` — the v0.8.7 frozen surface that
-  v1.0 keeps verbatim.
+- [`skill/origin-plot/archive/v0_8_7_full_stack/README.md`](v0_8_7_full_stack/README.md)
+  — the v0.8.7 frozen surface that v1.0 keeps verbatim.
 - `contracts/non_goals.md` — what `origin-plot` will and will not absorb.
 - `archive/v0_9_smart_input_reference.md` — the smart-input experiment
   that lives outside v1.0 by design.
