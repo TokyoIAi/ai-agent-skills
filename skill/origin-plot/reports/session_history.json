@@ -1,6 +1,6 @@
 [
   {
-    "timestamp_utc": "2026-05-22T05:48:53Z",
+    "timestamp_utc": "2026-05-22T06:09:19Z",
     "config": "configs\\fitting\\linear_fit_config.yaml",
     "output_basename": "linear_fit",
     "status": "PASS",
@@ -11,7 +11,7 @@
     "session_errors_count": 0
   },
   {
-    "timestamp_utc": "2026-05-22T05:48:53Z",
+    "timestamp_utc": "2026-05-22T06:09:26Z",
     "config": "configs\\fitting\\linear_fit_config.yaml",
     "output_basename": "linear_fit",
     "status": "PASS",
@@ -22,128 +22,7 @@
     "session_errors_count": 0
   },
   {
-    "timestamp_utc": "2026-05-22T05:49:25Z",
-    "config": "configs/test.yaml",
-    "output_basename": "",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:51:29Z",
-    "config": "configs\\fitting\\linear_fit_config.yaml",
-    "output_basename": "linear_fit",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:51:36Z",
-    "config": "configs\\fitting\\poly2_fit_config.yaml",
-    "output_basename": "poly2_fit",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:52:02Z",
-    "config": "configs\\fitting\\linear_fit_retry_injected_config.yaml",
-    "output_basename": "linear_fit_retry_injected",
-    "status": "PASS with session_retry",
-    "retry_used": true,
-    "attempts": 2,
-    "injection_triggered": true,
-    "final_session_status": "ok_after_retry",
-    "session_errors_count": 1
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:52:11Z",
-    "config": "configs\\fitting\\linear_fit_retry_injected_config.yaml",
-    "output_basename": "linear_fit_retry_injected",
-    "status": "PASS with session_retry",
-    "retry_used": true,
-    "attempts": 2,
-    "injection_triggered": true,
-    "final_session_status": "ok_after_retry",
-    "session_errors_count": 1
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:52:21Z",
-    "config": "configs\\fitting\\linear_fit_retry_injected_config.yaml",
-    "output_basename": "linear_fit_retry_injected",
-    "status": "PASS with session_retry",
-    "retry_used": true,
-    "attempts": 2,
-    "injection_triggered": true,
-    "final_session_status": "ok_after_retry",
-    "session_errors_count": 1
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:52:38Z",
-    "config": "configs\\fitting\\linear_fit_config.yaml",
-    "output_basename": "linear_fit",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:52:45Z",
-    "config": "configs\\fitting\\poly2_fit_config.yaml",
-    "output_basename": "poly2_fit",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:54:30Z",
-    "config": "configs\\fitting\\linear_fit_config.yaml",
-    "output_basename": "linear_fit",
-    "status": "PASS with session_retry",
-    "retry_used": true,
-    "attempts": 2,
-    "injection_triggered": true,
-    "final_session_status": "ok_after_retry",
-    "session_errors_count": 1
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:54:50Z",
-    "config": "configs\\fitting\\linear_fit_config.yaml",
-    "output_basename": "linear_fit",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:54:57Z",
-    "config": "configs\\fitting\\linear_fit_config.yaml",
-    "output_basename": "linear_fit",
-    "status": "PASS",
-    "retry_used": false,
-    "attempts": 1,
-    "injection_triggered": false,
-    "final_session_status": "ok",
-    "session_errors_count": 0
-  },
-  {
-    "timestamp_utc": "2026-05-22T05:55:04Z",
+    "timestamp_utc": "2026-05-22T06:09:32Z",
     "config": "configs\\fitting\\poly2_fit_config.yaml",
     "output_basename": "poly2_fit",
     "status": "PASS",

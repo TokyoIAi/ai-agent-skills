@@ -32,7 +32,16 @@ SESSION_FIELDS = (
     "retry_delay_seconds",
     "inject_session_error_once",
     "history_max_entries",
+    "health",
 )
+
+
+def health_defaults() -> dict[str, Any]:
+    return {
+        "recent_window": 20,
+        "degraded_ok_after_retry_threshold": 3,
+        "degraded_failed_threshold": 1,
+    }
 
 
 def session_defaults() -> dict[str, Any]:
@@ -43,7 +52,49 @@ def session_defaults() -> dict[str, Any]:
         "retry_delay_seconds": 2.0,
         "inject_session_error_once": False,
         "history_max_entries": 100,
+        "health": health_defaults(),
     }
+
+
+def coerce_health_policy(source: Any, context: str) -> dict[str, Any]:
+    if source is None:
+        return {}
+    if not isinstance(source, dict):
+        raise ValueError(f"{context}.health must be a mapping.")
+    coerced: dict[str, Any] = {}
+    if "recent_window" in source:
+        try:
+            value = int(source["recent_window"])
+        except (TypeError, ValueError):
+            raise ValueError(f"{context}.health.recent_window must be an integer.") from None
+        if value < 1 or value > 10000:
+            raise ValueError(f"{context}.health.recent_window must be between 1 and 10000.")
+        coerced["recent_window"] = int(value)
+    if "degraded_ok_after_retry_threshold" in source:
+        try:
+            value = int(source["degraded_ok_after_retry_threshold"])
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"{context}.health.degraded_ok_after_retry_threshold must be an integer."
+            ) from None
+        if value < 0 or value > 10000:
+            raise ValueError(
+                f"{context}.health.degraded_ok_after_retry_threshold must be between 0 and 10000."
+            )
+        coerced["degraded_ok_after_retry_threshold"] = int(value)
+    if "degraded_failed_threshold" in source:
+        try:
+            value = int(source["degraded_failed_threshold"])
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"{context}.health.degraded_failed_threshold must be an integer."
+            ) from None
+        if value < 0 or value > 10000:
+            raise ValueError(
+                f"{context}.health.degraded_failed_threshold must be between 0 and 10000."
+            )
+        coerced["degraded_failed_threshold"] = int(value)
+    return coerced
 
 
 def _coerce_session_dict(source: dict[str, Any], context: str) -> dict[str, Any]:
@@ -94,6 +145,8 @@ def _coerce_session_dict(source: dict[str, Any], context: str) -> dict[str, Any]
             if value < 1 or value > 10000:
                 raise ValueError(f"{context}.history_max_entries must be between 1 and 10000.")
             coerced["history_max_entries"] = int(value)
+    if "health" in source:
+        coerced["health"] = coerce_health_policy(source["health"], context)
     return coerced
 
 
@@ -104,12 +157,19 @@ def merge_session_settings(
 ) -> dict[str, Any]:
     """Combine session settings with priority: defaults < profile < explicit < CLI."""
     merged = session_defaults()
-    if profile:
-        merged.update(_coerce_session_dict(profile, "session_profile"))
-    if explicit:
-        merged.update(_coerce_session_dict(explicit, "origin_session"))
-    if cli_overrides:
-        merged.update(_coerce_session_dict(cli_overrides, "cli"))
+    health = dict(merged.get("health") or health_defaults())
+    for source, context in (
+        (profile, "session_profile"),
+        (explicit, "origin_session"),
+        (cli_overrides, "cli"),
+    ):
+        if not source:
+            continue
+        coerced = _coerce_session_dict(source, context)
+        if "health" in coerced:
+            health.update(coerced.pop("health"))
+        merged.update(coerced)
+    merged["health"] = health
     return merged
 
 

@@ -48,6 +48,13 @@ def rel(path: Path) -> str:
         return str(path)
 
 
+def current_timestamp_utc() -> str:
+    """Return current UTC timestamp in ISO-8601 form ending with Z."""
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def resolve_project_path(value: str) -> Path:
     path = Path(value)
     if path.is_absolute():
@@ -365,6 +372,7 @@ def build_report(
 ) -> dict[str, Any]:
     return {
         "status": status,
+        "timestamp_utc": current_timestamp_utc(),
         "config_path": rel(config_path),
         "input_file": rel(input_file) if input_file else None,
         "detected_format": detected_format,
@@ -396,7 +404,7 @@ def save_report(report: dict[str, Any]) -> None:
 SESSION_HISTORY_PATH = PROJECT_ROOT / "reports" / "session_history.json"
 
 
-def update_session_history(report: dict[str, Any]) -> dict[str, Any]:
+def update_session_history(report: dict[str, Any], reset_before_run: bool = False) -> dict[str, Any]:
     """Append a session history entry and return the session_history report block."""
     from datetime import datetime, timezone
 
@@ -416,6 +424,7 @@ def update_session_history(report: dict[str, Any]) -> dict[str, Any]:
         "entry_count_after_update": 0,
         "history_max_entries": history_max_entries,
         "truncated": False,
+        "reset_before_run": bool(reset_before_run),
         "warnings": [],
     }
     entry = {
@@ -887,6 +896,11 @@ def main() -> int:
         action="store_true",
         help="Test-only flag: inject a session error on the first attempt to exercise retry.",
     )
+    parser.add_argument(
+        "--reset-session-history",
+        action="store_true",
+        help="Reset reports/session_history.json before this run (backs up to .bak.json).",
+    )
     args = parser.parse_args()
 
     cli_session_overrides: dict[str, Any] = {}
@@ -898,6 +912,22 @@ def main() -> int:
         cli_session_overrides["kill_stale_origin_before_retry"] = False
     if args.inject_session_error_once:
         cli_session_overrides["inject_session_error_once"] = True
+
+    reset_history_requested = bool(args.reset_session_history)
+    if reset_history_requested:
+        SESSION_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if SESSION_HISTORY_PATH.exists():
+            try:
+                bak_path = SESSION_HISTORY_PATH.with_name("session_history.bak.json")
+                import shutil as _shutil
+
+                _shutil.copyfile(SESSION_HISTORY_PATH, bak_path)
+            except Exception:  # noqa: BLE001 - reset is best-effort, plot must still run
+                pass
+        try:
+            SESSION_HISTORY_PATH.write_text(json.dumps([], indent=2), encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            pass
 
     config_path = resolve_project_path(args.config)
     warnings: list[str] = []
@@ -1470,7 +1500,7 @@ def main() -> int:
             errors,
         )
         save_report(report)
-        report["session_history"] = update_session_history(report)
+        report["session_history"] = update_session_history(report, reset_before_run=reset_history_requested)
         save_report(report)
         return 0 if status in {"PASS", "PASS with warnings", "PASS with session_retry"} else 1
 
@@ -1499,7 +1529,7 @@ def main() -> int:
             errors,
         )
         save_report(report)
-        report["session_history"] = update_session_history(report)
+        report["session_history"] = update_session_history(report, reset_before_run=reset_history_requested)
         save_report(report)
         return 1
     finally:

@@ -1,5 +1,6 @@
 {
   "status": "PASS",
+  "timestamp_utc": "2026-05-22T06:10:47Z",
   "scan_name": "sample_scan_v0_4",
   "input_dir": "data\\batch_inputs",
   "files_seen": 3,

@@ -4,3 +4,8 @@ max_retries: 1
 kill_stale_origin_before_retry: false
 retry_delay_seconds: 1
 inject_session_error_once: true
+history_max_entries: 100
+health:
+  recent_window: 20
+  degraded_ok_after_retry_threshold: 3
+  degraded_failed_threshold: 1

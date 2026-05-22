@@ -24,6 +24,12 @@ def rel(path: Path) -> str:
         return str(path)
 
 
+def current_timestamp_utc() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def resolve_project_path(value: str) -> Path:
     path = Path(value)
     if path.is_absolute():
@@ -166,7 +172,7 @@ def discover_reports_from_dir(reports_dir: Path, output_path: Path) -> list[Path
     if not reports_dir.exists() or not reports_dir.is_dir():
         return []
     output_resolved = output_path.resolve()
-    skip_names = {"origin_plot_v0_8_artifact_report.json", "session_history.json"}
+    skip_names = {"origin_plot_v0_8_artifact_report.json", "session_history.json", "session_history.bak.json"}
     discovered: list[Path] = []
     for entry in sorted(reports_dir.glob("*.json")):
         if not entry.is_file():
@@ -175,6 +181,9 @@ def discover_reports_from_dir(reports_dir: Path, output_path: Path) -> list[Path
         if entry.resolve() == output_resolved:
             continue
         if entry.name in skip_names:
+            continue
+        # Skip .bak.json siblings used by the reset workflow.
+        if entry.name.endswith(".bak.json"):
             continue
         discovered.append(entry)
     return discovered
@@ -243,28 +252,26 @@ def parse_since(value: str | None) -> str | None:
 
 def report_timestamp(report: dict[str, Any]) -> str | None:
     """Best-effort retrieval of a report's timestamp."""
-    history = report.get("session_history") or {}
-    if isinstance(history, dict):
-        # Single-plot report path: pull from the most recent entry that matches this run.
-        # Fall back to nothing because the report itself doesn't carry a top-level timestamp.
-        pass
-    # Look at an embedded entry list if any (none today).
+    ts = report.get("timestamp_utc")
+    if isinstance(ts, str) and ts:
+        return ts
     return None
 
 
 def filter_reports_by_since(
     reports_data: list[tuple[Path, dict[str, Any] | None]],
     since: str | None,
-) -> tuple[list[tuple[Path, dict[str, Any] | None]], int, list[str]]:
-    """Filter reports whose timestamp is older than ``since``.
+    drop_missing_timestamp: bool = False,
+) -> tuple[list[tuple[Path, dict[str, Any] | None]], int, int, list[str]]:
+    """Filter reports by ``--since`` and optionally drop reports without a timestamp.
 
-    Returns (kept_reports, skipped_count, warnings). Reports without a timestamp
-    are kept by default and produce a warning.
+    Returns (kept_reports, skipped_by_since, skipped_missing_timestamp, warnings).
     """
     if not since:
-        return reports_data, 0, []
+        return reports_data, 0, 0, []
     kept: list[tuple[Path, dict[str, Any] | None]] = []
-    skipped = 0
+    skipped_since = 0
+    skipped_missing = 0
     warnings: list[str] = []
     for path, report in reports_data:
         if report is None or not isinstance(report, dict):
@@ -272,16 +279,19 @@ def filter_reports_by_since(
             continue
         ts = report_timestamp(report)
         if ts is None:
+            if drop_missing_timestamp:
+                skipped_missing += 1
+                continue
             warnings.append(
                 f"report has no timestamp; kept regardless of --since: {rel(path)}"
             )
             kept.append((path, report))
             continue
         if ts < since:
-            skipped += 1
+            skipped_since += 1
             continue
         kept.append((path, report))
-    return kept, skipped, warnings
+    return kept, skipped_since, skipped_missing, warnings
 
 
 def main() -> int:
@@ -323,6 +333,11 @@ def main() -> int:
         "--since",
         default=None,
         help="Filter reports whose timestamp is older than this (YYYY-MM-DD or full ISO Zulu).",
+    )
+    parser.add_argument(
+        "--drop-missing-timestamp",
+        action="store_true",
+        help="When --since is active, also drop reports lacking timestamp_utc instead of keeping them.",
     )
     args = parser.parse_args()
 
@@ -371,14 +386,19 @@ def main() -> int:
     reports_data = filter_reports_by_injection(reports_data, injection_filter)
 
     since_value = parse_since(args.since)
-    reports_data, since_skipped, since_warnings = filter_reports_by_since(reports_data, since_value)
+    reports_data, since_skipped, missing_ts_skipped, since_warnings = filter_reports_by_since(
+        reports_data, since_value, drop_missing_timestamp=bool(args.drop_missing_timestamp)
+    )
 
     summary = collect_artifacts(reports_data)
+    summary["timestamp_utc"] = current_timestamp_utc()
     summary["input_mode"] = input_mode
     summary["reports_dir"] = reports_dir_value
     summary["injection_filter"] = injection_filter
     summary["since"] = since_value
     summary["reports_skipped_by_since"] = since_skipped
+    summary["drop_missing_timestamp"] = bool(args.drop_missing_timestamp)
+    summary["reports_skipped_missing_timestamp"] = missing_ts_skipped
     if since_warnings:
         summary.setdefault("warnings", []).extend(since_warnings)
     summary["scanned_paths"] = [rel(path) for path, _ in reports_data]

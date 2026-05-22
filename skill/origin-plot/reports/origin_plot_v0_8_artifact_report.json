@@ -49,17 +49,16 @@
       "pdf_exists": true
     }
   ],
-  "warnings": [
-    "report has no timestamp; kept regardless of --since: reports\\origin_plot_v0_2_report.json",
-    "report has no timestamp; kept regardless of --since: reports\\origin_plot_v0_3_batch_report.json",
-    "report has no timestamp; kept regardless of --since: reports\\origin_plot_v0_4_scan_report.json"
-  ],
+  "warnings": [],
   "missing_artifacts": [],
+  "timestamp_utc": "2026-05-22T06:11:07Z",
   "input_mode": "reports_dir",
   "reports_dir": "reports",
   "injection_filter": "exclude_injection",
   "since": "2000-01-01T00:00:00Z",
   "reports_skipped_by_since": 0,
+  "drop_missing_timestamp": true,
+  "reports_skipped_missing_timestamp": 0,
   "scanned_paths": [
     "reports\\origin_plot_v0_2_report.json",
     "reports\\origin_plot_v0_3_batch_report.json",

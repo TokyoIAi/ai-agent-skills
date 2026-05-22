@@ -24,6 +24,12 @@ def rel(path: Path) -> str:
         return str(path)
 
 
+def current_timestamp_utc() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def resolve_project_path(value: str) -> Path:
     path = Path(value)
     if path.is_absolute():
@@ -214,6 +220,7 @@ def main() -> int:
     status = report_status(len(generated_configs), len(failures))
     report = {
         "status": status,
+        "timestamp_utc": current_timestamp_utc(),
         "scan_name": scan_name,
         "input_dir": input_dir_report,
         "files_seen": files_seen,

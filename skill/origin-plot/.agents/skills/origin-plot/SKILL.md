@@ -197,6 +197,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.8.2: deterministic retry-path injection, reusable session profiles, CLI session overrides, reports-dir artifact summarization, and a session retry logic smoke test.
 - v0.8.3: CLI retry injection smoke test, batch session_test_summary, artifact injection filter, session_history.json, and aggregate smoke test runner.
 - v0.8.4: bounded session history retention, batch session_history_summary with health_status, artifact summary --since filter, and offline-only smoke runner mode.
+- v0.8.5: report-level timestamp_utc, session-history reset CLI/script, configurable session-health policy, artifact summary missing-timestamp filter, and pre-commit smoke runner scripts.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -752,3 +753,47 @@ Batch reports include `session_history_summary` with `entries_seen`, `recent_win
 - `run_smoke_tests.py --skip-origin` runs only Origin-independent smoke tests and PASSes.
 - All single-plot reports continue to record `session_history.path`, `updated`, `entry_count_after_update`, `history_max_entries`, `truncated`, `warnings`.
 - Reports remain free of absolute paths and `output/` stays git-ignored.
+
+## Report Timestamp Contract (v0.8.5)
+
+Single-plot, batch, scan, and artifact reports all carry a top-level `timestamp_utc` field in ISO-8601 Zulu format (`YYYY-MM-DDTHH:MM:SSZ`). The artifact summarizer's `--since` filter prefers this field; reports lacking it are kept by default with a warning, or skipped when `--drop-missing-timestamp` is passed.
+
+## Session History Reset Workflow (v0.8.5)
+
+Two entry points reset `reports/session_history.json`:
+
+- `scripts/reset_session_history.py` — standalone reset.
+- `scripts/origin_plot_from_config.py --reset-session-history` — reset and run a normal plot.
+
+Both back up the existing file to `reports/session_history.bak.json` (overwriting any prior backup) before writing `[]`. The single-plot report records `session_history.reset_before_run`.
+
+## Session Health Policy (v0.8.5)
+
+`origin_session.health` and `session_profile.health` accept:
+
+- `recent_window` — integer 1–10000.
+- `degraded_ok_after_retry_threshold` — integer 0–10000.
+- `degraded_failed_threshold` — integer 0–10000.
+
+Defaults (20, 3, 1) are bundled in `session_defaults()`. Merge order is the same as the rest of session settings: defaults < session_profile < `origin_session` block < CLI. Health is deep-merged so partial overrides are valid.
+
+Validator rejects out-of-range or wrong-type values up front. The batch report's `session_history_summary` sources its policy from the first job's `effective_settings.health`, falling back to defaults.
+
+## Artifact Summary Missing Timestamp Policy (v0.8.5)
+
+`scripts/summarize_fit_artifacts.py` accepts `--drop-missing-timestamp`. When `--since` is active and `--drop-missing-timestamp` is supplied, reports without `timestamp_utc` are dropped instead of kept-with-warning. The artifact report adds `drop_missing_timestamp` and `reports_skipped_missing_timestamp`.
+
+## Pre-commit Smoke Test (v0.8.5)
+
+`scripts/pre_commit_smoke.ps1` and `scripts/pre_commit_smoke.sh` wrap `run_smoke_tests.py --skip-origin` for manual pre-commit usage. Both exit non-zero on any offline test failure. The scripts deliberately do not install Git hooks; teams wire them into their preferred guard.
+
+## v0.8.5 Acceptance Criteria
+
+- Single-plot, batch, scan, and artifact reports all carry a top-level `timestamp_utc` field.
+- `summarize_fit_artifacts.py --since X` filters using `timestamp_utc` first; missing timestamps still produce a warning unless `--drop-missing-timestamp` is also set.
+- Artifact report includes `drop_missing_timestamp` and `reports_skipped_missing_timestamp`.
+- `reset_session_history.py` and `--reset-session-history` both back up and re-init `reports/session_history.json`; report records `reset_before_run`.
+- `origin_session.health` accepts `recent_window`, `degraded_ok_after_retry_threshold`, `degraded_failed_threshold`. Validator rejects out-of-range values. Batch `session_history_summary` honors the merged policy.
+- `pre_commit_smoke.ps1` (and `pre_commit_smoke.sh`) exit non-zero on smoke-test failure.
+- All offline smoke tests pass: `test_session_retry_logic`, `test_session_health_logic`.
+- Reports remain free of absolute paths.

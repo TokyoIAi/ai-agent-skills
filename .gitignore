@@ -16,6 +16,9 @@ output/
 *.tmp
 *.bak
 
+# Session history backups (test/reset workflow)
+**/reports/session_history.bak.json
+
 # Origin temporary/cache files
 *.ogwu~
 *.opju~

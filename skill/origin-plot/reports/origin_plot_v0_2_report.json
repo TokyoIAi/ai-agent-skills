@@ -1,5 +1,6 @@
 {
   "status": "PASS",
+  "timestamp_utc": "2026-05-22T06:09:19Z",
   "config_path": "configs\\fitting\\linear_fit_config.yaml",
   "input_file": "data\\fit_sample.csv",
   "detected_format": "csv",
@@ -140,7 +141,12 @@
       "kill_stale_origin_before_retry": true,
       "retry_delay_seconds": 2.0,
       "inject_session_error_once": false,
-      "history_max_entries": 100
+      "history_max_entries": 100,
+      "health": {
+        "recent_window": 20,
+        "degraded_ok_after_retry_threshold": 3,
+        "degraded_failed_threshold": 1
+      }
     },
     "attempts": 1,
     "retry_used": false,
@@ -160,9 +166,10 @@
   "session_history": {
     "path": "reports\\session_history.json",
     "updated": true,
-    "entry_count_after_update": 12,
+    "entry_count_after_update": 1,
     "history_max_entries": 100,
     "truncated": false,
+    "reset_before_run": false,
     "warnings": []
   }
 }

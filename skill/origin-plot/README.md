@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.4.
+Current version: v0.8.5.
 
 ## Supported formats
 
@@ -661,6 +661,84 @@ py scripts\run_smoke_tests.py --skip-origin   # offline-only smoke tests
 ### Why session history is observation, not pass/fail
 
 Session history is collected for trend analysis. A run with `health_status: degraded` does not flip the plot's status; a degraded health tells the operator to investigate the Origin install. The plot status is still `PASS`, `PASS with warnings`, `PASS with session_retry`, `PARTIAL PASS`, or `FAIL` based on actual artifacts and Origin pipeline outcomes. Only history-write-side failures land in `session_history.warnings`; they do not block plotting.
+
+## v0.8.5 Timestamp and Health Policy
+
+v0.8.5 stamps every report with `timestamp_utc`, exposes a session-health policy in profiles, gives operators a way to clear history before a clean acceptance pass, and lets the artifact summarizer drop reports without timestamps.
+
+### Report timestamps
+
+Every report writes a top-level `timestamp_utc` field in `YYYY-MM-DDTHH:MM:SSZ` form:
+
+- `reports/origin_plot_v0_2_report.json` (single-plot)
+- `reports/origin_plot_v0_3_batch_report.json` (batch)
+- `reports/origin_plot_v0_4_scan_report.json` (directory scan)
+- `reports/origin_plot_v0_8_artifact_report.json` (artifact summary)
+
+### `--reset-session-history` and `reset_session_history.py`
+
+Two equivalent ways to clear `reports/session_history.json` before a clean health observation window:
+
+```powershell
+py scripts\origin_plot_from_config.py --config <config> --reset-session-history
+py scripts\reset_session_history.py
+```
+
+Both back up the existing file to `reports/session_history.bak.json` (overwriting any prior backup) and write `[]` to the live file. The single-plot report records `session_history.reset_before_run` so the action is traceable.
+
+### Session health policy
+
+`origin_session.health` (or the `health` block in a session profile) controls the soft health signal:
+
+```yaml
+session_profile_name: "default_session"
+retry_on_com_error: true
+max_retries: 1
+kill_stale_origin_before_retry: true
+retry_delay_seconds: 2
+inject_session_error_once: false
+history_max_entries: 100
+health:
+  recent_window: 20
+  degraded_ok_after_retry_threshold: 3
+  degraded_failed_threshold: 1
+```
+
+Validator rules:
+
+- `recent_window`: integer 1–10000.
+- `degraded_ok_after_retry_threshold`: integer 0–10000.
+- `degraded_failed_threshold`: integer 0–10000.
+
+Status rules in `session_history_summary`:
+
+- `recent_failed >= degraded_failed_threshold` → `degraded`.
+- `recent_ok_after_retry >= degraded_ok_after_retry_threshold` → `degraded`.
+- otherwise → `ok`.
+- history file missing or unreadable → `unknown`.
+
+The status is still a soft signal; plot pass/fail is unchanged.
+
+### `--drop-missing-timestamp`
+
+```powershell
+py scripts\summarize_fit_artifacts.py --reports-dir reports --exclude-injection --since 2000-01-01 --drop-missing-timestamp
+```
+
+When `--since` is active, this flag drops reports without `timestamp_utc` instead of keeping them with a warning. The artifact report records `drop_missing_timestamp` and `reports_skipped_missing_timestamp`.
+
+### Pre-commit smoke
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\pre_commit_smoke.ps1
+bash scripts/pre_commit_smoke.sh
+```
+
+Manually invoked offline guard. It runs `run_smoke_tests.py --skip-origin` and exits non-zero if any offline smoke test fails. The script does not install Git hooks; teams may wire it into their preferred guard.
+
+### Why health stays a soft signal
+
+Health is meant to surface trends in the Origin install. A degraded streak indicates upcoming issues but should never invalidate a successful plot run. Plot pass/fail depends only on actual outputs, retries, and pipeline outcomes — never on the health observation.
 
 ## YAML fields
 

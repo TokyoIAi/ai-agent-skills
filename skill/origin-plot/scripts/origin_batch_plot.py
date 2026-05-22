@@ -21,6 +21,12 @@ def rel(path: Path) -> str:
         return str(path)
 
 
+def current_timestamp_utc() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def resolve_project_path(value: str) -> Path:
     path = Path(value)
     if path.is_absolute():
@@ -376,13 +382,19 @@ def session_test_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def session_history_summary(recent_window: int = 20) -> dict[str, Any]:
+def session_history_summary(
+    recent_window: int = 20,
+    degraded_ok_after_retry_threshold: int = 3,
+    degraded_failed_threshold: int = 1,
+) -> dict[str, Any]:
     """Read reports/session_history.json and summarize recent health."""
     history_path = PROJECT_ROOT / "reports" / "session_history.json"
     summary: dict[str, Any] = {
         "history_path": rel(history_path),
         "entries_seen": 0,
         "recent_window": int(recent_window),
+        "degraded_ok_after_retry_threshold": int(degraded_ok_after_retry_threshold),
+        "degraded_failed_threshold": int(degraded_failed_threshold),
         "recent_ok": 0,
         "recent_ok_after_retry": 0,
         "recent_failed": 0,
@@ -414,13 +426,36 @@ def session_history_summary(recent_window: int = 20) -> dict[str, Any]:
         if entry.get("injection_triggered"):
             summary["recent_injection_triggered"] += 1
 
-    if summary["recent_failed"] > 0:
+    if summary["recent_failed"] >= int(degraded_failed_threshold):
         summary["health_status"] = "degraded"
-    elif summary["recent_ok_after_retry"] >= 3:
+    elif summary["recent_ok_after_retry"] >= int(degraded_ok_after_retry_threshold):
         summary["health_status"] = "degraded"
     else:
         summary["health_status"] = "ok"
     return summary
+
+
+def derive_health_policy(results: list[dict[str, Any]]) -> dict[str, int]:
+    """Pick the first job's health policy, falling back to defaults."""
+    defaults = {
+        "recent_window": 20,
+        "degraded_ok_after_retry_threshold": 3,
+        "degraded_failed_threshold": 1,
+    }
+    for job in results:
+        session = job.get("origin_session") or {}
+        effective = session.get("effective_settings") or {}
+        health = effective.get("health")
+        if isinstance(health, dict):
+            policy = dict(defaults)
+            for key in policy:
+                if key in health:
+                    try:
+                        policy[key] = int(health[key])
+                    except (TypeError, ValueError):
+                        pass
+            return policy
+    return defaults
 
 
 def restore_single_report(original_text: str | None) -> None:
@@ -476,9 +511,11 @@ def main() -> int:
     passed_count = sum(1 for job in results if is_job_pass(job))
     failed_count = sum(1 for job in results if not is_job_pass(job))
     status = batch_status(passed_count, failed_count)
+    health_policy = derive_health_policy(results)
     retry_config = create_retry_config(batch_name, results)
     report = {
         "status": status,
+        "timestamp_utc": current_timestamp_utc(),
         "batch_name": batch_name,
         "job_count": len(results),
         "passed_count": passed_count,
@@ -492,7 +529,11 @@ def main() -> int:
         "fit_artifact_summary": fit_artifact_summary(results),
         "origin_session_summary": origin_session_summary(results),
         "session_test_summary": session_test_summary(results),
-        "session_history_summary": session_history_summary(),
+        "session_history_summary": session_history_summary(
+            recent_window=health_policy["recent_window"],
+            degraded_ok_after_retry_threshold=health_policy["degraded_ok_after_retry_threshold"],
+            degraded_failed_threshold=health_policy["degraded_failed_threshold"],
+        ),
         "manual_intervention": {
             "policy": "GUI dialog auto-clicking is intentionally not implemented.",
             "first_run_origin_dialog_caveat": True,
