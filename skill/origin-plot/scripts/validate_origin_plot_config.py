@@ -14,7 +14,14 @@ from origin_session_utils import (  # noqa: E402
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
+SUPPORTED_GRAPH_TYPES = {
+    "line",
+    "scatter",
+    "line_symbol",
+    "errorbar",
+    "grouped_line",
+    "grouped_scatter",
+}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
@@ -354,6 +361,36 @@ def validate_config(config: dict[str, Any]) -> tuple[dict[str, Any], Any]:
     df = read_dataframe(input_path, detected_format, config.get("sheet_name"))
 
     x_column = str(config["x_column"])
+    group_column = config.get("group_column")
+    if graph_type in {"grouped_line", "grouped_scatter"}:
+        if not group_column:
+            fail(f"graph_type={graph_type} requires group_column.")
+        if str(group_column) not in df.columns:
+            fail(f"group_column '{group_column}' not found in input.")
+        missing_value_cols = [col for col in y_columns if col not in df.columns]
+        if missing_value_cols:
+            fail(f"Missing value column(s) for grouped plot: {missing_value_cols}")
+        # Numeric validation against the value column only; pivot happens at runtime.
+        value_column = y_columns[0]
+        try:
+            import pandas as pd
+
+            pivot = df.pivot_table(
+                index=x_column,
+                columns=str(group_column),
+                values=value_column,
+                aggfunc="mean",
+            ).reset_index()
+            pivot.columns = [str(c) for c in pivot.columns]
+        except Exception as exc:  # noqa: BLE001
+            fail(f"grouped pivot validation failed: {type(exc).__name__}: {exc}")
+        new_y_columns = [c for c in pivot.columns if c != x_column]
+        if not new_y_columns:
+            fail("grouped pivot produced no y series.")
+        # Use the pivoted dataframe for the remaining numeric checks.
+        df = pivot
+        y_columns = new_y_columns
+
     missing = [col for col in [x_column, *y_columns] if col not in df.columns]
     if missing:
         fail(f"Missing column(s): {missing}")

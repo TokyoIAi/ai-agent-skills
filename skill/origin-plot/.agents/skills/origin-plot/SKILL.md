@@ -200,6 +200,7 @@ If validation fails, do not call Origin. If Origin automation fails, print the f
 - v0.8.5: report-level timestamp_utc, session-history reset CLI/script, configurable session-health policy, artifact summary missing-timestamp filter, and pre-commit smoke runner scripts.
 - v0.8.6: health policy CLI override, single-plot session_health_snapshot, artifact health_status_counts rollup, and repository-level CONTRIBUTING.md.
 - v0.8.7: committed-report path leak scanner, pre-commit hygiene workflow, --print-health CLI, and batch health refactor onto compute_health_snapshot.
+- v0.9: smart data understanding for CSV/XLSX/TSV/TXT/Markdown inputs, automatic column-role inference, recommended graph type, generated plot config, grouped plot MVP, and a portable report_package output.
 
 ## v0.3 Batch Plotting Workflow
 
@@ -870,3 +871,59 @@ Either failure aborts the guard with exit code 1. Manual-only — neither script
 - `test_print_health` is registered as an offline smoke test and passes under `--skip-origin`.
 - Reports remain free of absolute paths.
 - After v0.8.7, the v0.8.x line is frozen for production observation.
+
+## Smart Input Analysis Workflow (v0.9)
+
+```powershell
+py scripts\analyze_data_source.py --config configs\smart\smart_input_config.yaml
+py scripts\run_smart_plot.py --config configs\smart\smart_input_config.yaml
+```
+
+`analyze_data_source.py` reads the smart input config, loads the source file (CSV / XLSX / TSV / TXT / Markdown), detects header row, units, numeric vs. text columns, infers column roles, recommends a graph type, writes `reports/smart_input_analysis_report.json`, and emits `configs/generated/smart_generated_plot_config.yaml`. It never calls Origin.
+
+`run_smart_plot.py` orchestrates the end-to-end pipeline: analyze → generated config → invoke `origin_plot_from_config.py` → assemble `reports/report_package/`. The smart pipeline writes `reports/smart_plot_run_report.json` with the analysis status, the plot status, the final figure existence, and the report-package contents.
+
+`--input-file` on either CLI overrides the YAML's `input_file` so the same smart config can drive multiple datasets.
+
+## Smart Role Inference Rules (v0.9)
+
+- `x_column`: explicit candidate match wins (case-insensitive, unit suffix stripped); else the first numeric column.
+- `y_columns`: every remaining numeric column that is not the x and not an error column.
+- `y_error_columns`: numeric columns whose names end in any of the configured suffixes and whose base name matches a y candidate.
+- `group_column`: text columns whose names match `group_column_candidates`; falls back to the first text column.
+
+`role_inference_rules` lives under the smart input config. Defaults cover both English and Chinese candidate names (`时间`, `距离`, `误差`, `类别`, `组别`).
+
+## Markdown Table Input Support (v0.9)
+
+`markdown.extract_first_table=true` selects the first standard pipe-formatted Markdown table. The table is parsed into a pandas DataFrame with header detection. The smart pipeline then writes a CSV bridge under `data/smart_inputs/_bridges/<basename>.csv` so the existing v0.2 plotting pipeline can consume the data as plain CSV. The analysis report tracks both the original `input_file` and the bridged `plot_input_path`.
+
+## Grouped Plot MVP (v0.9)
+
+`graph_type: grouped_line` and `graph_type: grouped_scatter` accept a `group_column` and a single value column. Both validator and plotting script pivot the dataframe to wide form (one column per group level) before drawing in Origin. Each group becomes its own series. Errorbars and fitting are not combined with grouped data in this MVP. Failures during pivot raise `ValueError` with the underlying reason instead of silently downgrading.
+
+## Report Package Output Contract (v0.9)
+
+`reports/report_package/` is rebuilt every time `run_smart_plot.py` succeeds:
+
+```
+reports/report_package/
+  figures/<basename>.png, <basename>.pdf
+  origin_projects/<basename>.opju
+  configs/smart_generated_plot_config.yaml
+  figure_index.md
+  run_report.json
+```
+
+`figure_index.md` records `input_file`, `detected_format`, `recommended_graph_type`, `selected_roles`, the per-output relative paths, and the smart-input config path. `run_report.json` mirrors `reports/smart_plot_run_report.json` with relative paths only.
+
+## v0.9 Acceptance Criteria
+
+- `scripts/analyze_data_source.py` analyzes CSV / XLSX / TSV / TXT / Markdown and emits a generated plot config plus an analysis report. It never calls Origin.
+- `scripts/run_smart_plot.py` runs analyze + Origin plotting + report-package assembly with `smart_plot_run_report.json` recording the chained statuses.
+- All five canonical samples (`sample_excel_like.csv`, `sample_errorbar.csv`, `sample_grouped.csv`, `sample_markdown_table.md`, `sample_excel_book.xlsx`) reach `smart_plot_status: PASS` and produce PNG/PDF/OPJU outputs verified on disk.
+- Errorbar inputs are recognized via suffix rules; grouped inputs trigger the pivot path; Markdown inputs round-trip through a CSV bridge.
+- Validator and plotting script accept `grouped_line` / `grouped_scatter` plus `group_column` while preserving every prior graph type's behavior.
+- Smoke test `test_smart_input_logic` is registered with `requires_origin=False` and passes under `run_smoke_tests.py --skip-origin`.
+- `reports/report_package/` is populated and free of absolute paths; pre-commit hygiene scan still passes.
+- No image / OCR pipeline is introduced in v0.9.

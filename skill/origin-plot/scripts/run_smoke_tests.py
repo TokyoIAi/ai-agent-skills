@@ -35,6 +35,11 @@ def all_tests() -> list[tuple[str, list[str], bool]]:
             False,
         ),
         (
+            "test_smart_input_logic",
+            [sys.executable, "scripts/test_smart_input_logic.py"],
+            False,
+        ),
+        (
             "test_cli_retry_injection",
             [sys.executable, "scripts/test_cli_retry_injection.py"],
             True,

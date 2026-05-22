@@ -19,6 +19,9 @@ output/
 # Session history backups (test/reset workflow)
 **/reports/session_history.bak.json
 
+# Smart-input transient CSV bridges (regenerated each smart run)
+**/data/smart_inputs/_bridges/
+
 # Origin temporary/cache files
 *.ogwu~
 *.opju~

@@ -1,0 +1,54 @@
+input_file: "data/smart_inputs/sample_markdown_table.md"
+input_format: "auto"
+
+smart_analysis:
+  enabled: true
+  detect_header_row: true
+  detect_units: true
+  detect_column_roles: true
+  detect_plot_type: true
+
+role_inference_rules:
+  prefer_first_numeric_as_x: true
+  prefer_remaining_numeric_as_y: true
+  infer_error_columns_by_suffix: true
+  infer_group_columns_by_text: true
+  error_column_suffixes:
+    - "_err"
+    - "_error"
+    - "_uncertainty"
+    - "误差"
+    - "标准差"
+  x_column_candidates:
+    - "x"
+    - "time"
+    - "时间"
+    - "distance"
+    - "距离"
+    - "电压"
+    - "voltage"
+    - "wavelength"
+    - "波长"
+  group_column_candidates:
+    - "group"
+    - "类别"
+    - "组别"
+    - "type"
+    - "category"
+
+markdown:
+  extract_first_table: true
+
+excel:
+  auto_detect_sheet: true
+  auto_detect_header_row: true
+
+output:
+  generated_config_path: "configs/generated/smart_generated_plot_config.yaml"
+  smart_report_path: "reports/smart_input_analysis_report.json"
+  output_dir: "output/origin_plot_smart"
+  output_basename: null  # auto-derived from input filename when null
+  style_profile: "configs/styles/lab_report_style.yaml"
+  export_profile: "configs/exports/default_export.yaml"
+  show_origin: true
+  report_package_dir: "reports/report_package"

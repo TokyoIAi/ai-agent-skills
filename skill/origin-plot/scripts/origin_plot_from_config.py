@@ -27,7 +27,14 @@ from origin_session_utils import (  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPORT_PATH = PROJECT_ROOT / "reports" / "origin_plot_v0_2_report.json"
-SUPPORTED_GRAPH_TYPES = {"line", "scatter", "line_symbol", "errorbar"}
+SUPPORTED_GRAPH_TYPES = {
+    "line",
+    "scatter",
+    "line_symbol",
+    "errorbar",
+    "grouped_line",
+    "grouped_scatter",
+}
 SUPPORTED_FORMATS = {"auto", "csv", "xlsx", "xls", "tsv", "txt"}
 EXPORT_KEYS = ("export_png", "export_pdf", "save_opju", "png_width")
 SUPPORTED_FIT_MODELS = {"linear", "polynomial"}
@@ -511,9 +518,65 @@ def prepare_data(config: dict[str, Any]):
     df = read_dataframe(input_path, detected_format, config.get("sheet_name"))
 
     x_column = str(config["x_column"])
+    group_column = config.get("group_column")
+    if graph_type in {"grouped_line", "grouped_scatter"}:
+        if not group_column:
+            raise ValueError(
+                f"graph_type={graph_type} requires group_column."
+            )
+        if str(group_column) not in df.columns:
+            raise ValueError(f"group_column '{group_column}' not found in input.")
+        # Validate the value column(s) exist before pivot.
+        missing_value_cols = [col for col in y_columns if col not in df.columns]
+        if missing_value_cols:
+            raise ValueError(f"Missing value column(s): {missing_value_cols}")
+        # Pivot: take the first y column as the value, fan out by group.
+        value_column = y_columns[0]
+        try:
+            pivot = df.pivot_table(
+                index=x_column,
+                columns=str(group_column),
+                values=value_column,
+                aggfunc="mean",
+            ).reset_index()
+        except Exception as exc:  # noqa: BLE001 - keep failure visible to caller
+            raise ValueError(
+                f"grouped pivot failed: {type(exc).__name__}: {exc}"
+            ) from exc
+        pivot.columns = [str(c) for c in pivot.columns]
+        # Replace y_columns with the new fan-out columns.
+        new_y_columns = [c for c in pivot.columns if c != x_column]
+        if not new_y_columns:
+            raise ValueError("grouped pivot produced no y series.")
+        df = pivot
+        y_columns = new_y_columns
+
     missing = [col for col in [x_column, *y_columns] if col not in df.columns]
     if missing:
         raise ValueError(f"Missing column(s): {missing}")
+
+    y_error_columns, x_error_column, errorbar_warnings = normalize_errorbar_config(config, y_columns)
+    extra_columns = list(y_error_columns.values())
+    if x_error_column:
+        extra_columns.append(x_error_column)
+    missing_error_columns = [col for col in extra_columns if col not in df.columns]
+    if missing_error_columns:
+        raise ValueError(f"Missing error column(s): {missing_error_columns}")
+
+    plot_columns = list(dict.fromkeys([x_column, *y_columns, *extra_columns]))
+    plot_df = df[plot_columns].copy()
+    for col in plot_df.columns:
+        plot_df[col] = pd.to_numeric(plot_df[col], errors="coerce")
+    for col in extra_columns:
+        if (plot_df[col].dropna() < 0).any():
+            raise ValueError(f"Error column contains negative values: {col}")
+    row_count_raw = int(len(plot_df))
+    plot_df = plot_df.dropna()
+    row_count_used = int(len(plot_df))
+    dropped = row_count_raw - row_count_used
+    if row_count_used < 2:
+        raise ValueError("Selected x/y columns must contain at least 2 valid numeric rows.")
+    return input_path, detected_format, df, plot_df, x_column, y_columns, graph_type, dropped, y_error_columns, x_error_column, errorbar_warnings
 
     y_error_columns, x_error_column, errorbar_warnings = normalize_errorbar_config(config, y_columns)
     extra_columns = list(y_error_columns.values())
@@ -548,6 +611,10 @@ def graph_template_and_plot_type(graph_type: str, warnings: list[str]) -> tuple[
         return "line", "y"
     if graph_type == "errorbar":
         return "line", "y"
+    if graph_type == "grouped_line":
+        return "line", "l"
+    if graph_type == "grouped_scatter":
+        return "scatter", "s"
     warnings.append(f"Unsupported graph_type {graph_type}; fallback to line.")
     return "line", "l"
 

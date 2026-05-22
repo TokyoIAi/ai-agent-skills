@@ -1,0 +1,29 @@
+{
+  "timestamp_utc": "2026-05-22T09:24:16Z",
+  "status": "FAIL",
+  "analysis_report": "PASS",
+  "generated_config": "configs\\generated\\smart_generated_plot_config.yaml",
+  "origin_plot_report": "PASS",
+  "report_package": null,
+  "final_outputs": {
+    "png": {
+      "path": "output\\origin_plot_smart\\smart_sample_markdown_table\\smart_sample_markdown_table.png",
+      "exists": true,
+      "size_bytes": 19830
+    },
+    "pdf": {
+      "path": "output\\origin_plot_smart\\smart_sample_markdown_table\\smart_sample_markdown_table.pdf",
+      "exists": true,
+      "size_bytes": 16701
+    },
+    "opju": {
+      "path": "output\\origin_plot_smart\\smart_sample_markdown_table\\smart_sample_markdown_table.opju",
+      "exists": true,
+      "size_bytes": 26652
+    }
+  },
+  "warnings": [
+    "markdown converted to CSV bridge: data\\smart_inputs\\_bridges\\smart_sample_markdown_table.csv"
+  ],
+  "errors": []
+}

@@ -1,0 +1,16 @@
+input_file: data/smart_inputs/_bridges/smart_sample_markdown_table.csv
+input_format: csv
+sheet_name: null
+x_column: 距离(cm)
+y_columns:
+- 功率(W)
+x_error_column: null
+graph_type: line
+graph_title: 'Smart auto plot: smart_sample_markdown_table.csv'
+x_title: 距离 (cm)
+y_title: 功率(W)
+style_profile: configs/styles/lab_report_style.yaml
+export_profile: configs/exports/default_export.yaml
+output_dir: output/origin_plot_smart/smart_sample_markdown_table
+output_basename: smart_sample_markdown_table
+show_origin: true

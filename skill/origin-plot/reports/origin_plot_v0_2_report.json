@@ -1,31 +1,31 @@
 {
   "status": "PASS",
-  "timestamp_utc": "2026-05-22T06:38:23Z",
-  "config_path": "configs\\fitting\\linear_fit_config.yaml",
-  "input_file": "data\\fit_sample.csv",
+  "timestamp_utc": "2026-05-22T09:24:22Z",
+  "config_path": "configs\\generated\\smart_generated_plot_config.yaml",
+  "input_file": "data\\smart_inputs\\_bridges\\smart_sample_markdown_table.csv",
   "detected_format": "csv",
-  "row_count_raw": 6,
-  "row_count_used": 6,
-  "x_column": "x",
+  "row_count_raw": 4,
+  "row_count_used": 4,
+  "x_column": "距离(cm)",
   "y_columns": [
-    "y"
+    "功率(W)"
   ],
-  "graph_type": "line_symbol",
+  "graph_type": "line",
   "outputs": {
     "png": {
-      "path": "output\\origin_plot_fitting\\linear_fit.png",
+      "path": "output\\origin_plot_smart\\smart_sample_markdown_table\\smart_sample_markdown_table.png",
       "exists": true,
-      "size_bytes": 17585
+      "size_bytes": 19830
     },
     "pdf": {
-      "path": "output\\origin_plot_fitting\\linear_fit.pdf",
+      "path": "output\\origin_plot_smart\\smart_sample_markdown_table\\smart_sample_markdown_table.pdf",
       "exists": true,
-      "size_bytes": 18425
+      "size_bytes": 16701
     },
     "opju": {
-      "path": "output\\origin_plot_fitting\\linear_fit.opju",
+      "path": "output\\origin_plot_smart\\smart_sample_markdown_table\\smart_sample_markdown_table.opju",
       "exists": true,
-      "size_bytes": 28566
+      "size_bytes": 26652
     }
   },
   "style": {
@@ -56,73 +56,31 @@
     "warnings": []
   },
   "fitting": {
-    "requested": true,
-    "applied": true,
-    "models": [
-      {
-        "name": "linear_fit_y",
-        "y_column": "y",
-        "model": "linear",
-        "degree": 1,
-        "coefficients": [
-          1.9885714285714278,
-          1.0952380952380938
-        ],
-        "equation": "y = 1.98857*x + 1.09524",
-        "r_squared": 0.9975343895005628,
-        "residual_sum_of_squares": 0.171047619047619,
-        "n_points": 6,
-        "curve_added_to_origin": true,
-        "warnings": [],
-        "fit_x_column": "linear_fit_y_x",
-        "fit_y_column": "linear_fit_y_y"
-      }
-    ],
+    "requested": false,
+    "applied": false,
+    "models": [],
     "warnings": []
   },
   "fitting_annotation": {
-    "requested": true,
-    "applied": true,
-    "position": "top_right",
-    "texts": [
-      {
-        "fit_name": "linear_fit_y",
-        "text": "linear_fit_y\ny = 1.98857*x + 1.09524\nR^2 = 0.997534",
-        "x": 4.9910000000000005,
-        "y": 11.64
-      }
-    ],
+    "requested": false,
+    "applied": false,
+    "position": null,
+    "texts": [],
     "warnings": []
   },
   "fitting_summary_csv": {
-    "requested": true,
-    "path": "reports\\fitting_summary_linear.csv",
-    "exists": true,
-    "rows_written": 1,
-    "append": false,
+    "requested": false,
+    "path": null,
+    "exists": false,
+    "rows_written": 0,
+    "append": true,
     "warnings": []
   },
   "residuals": {
-    "csv_requested": true,
-    "csv_outputs": [
-      {
-        "fit_name": "linear_fit_y",
-        "path": "reports\\residuals\\linear_fit_linear_fit_y_residuals.csv",
-        "exists": true,
-        "rows_written": 6,
-        "size_bytes": 322
-      }
-    ],
-    "residual_plot_requested": true,
-    "residual_plot_outputs": [
-      {
-        "fit_name": "linear_fit_y",
-        "png": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.png",
-        "pdf": "output\\origin_plot_residuals\\linear_fit_linear_fit_y_residual.pdf",
-        "png_exists": true,
-        "pdf_exists": true
-      }
-    ],
+    "csv_requested": false,
+    "csv_outputs": [],
+    "residual_plot_requested": false,
+    "residual_plot_outputs": [],
     "warnings": []
   },
   "origin_session": {
@@ -171,7 +129,7 @@
   "session_history": {
     "path": "reports\\session_history.json",
     "updated": true,
-    "entry_count_after_update": 5,
+    "entry_count_after_update": 1,
     "history_max_entries": 100,
     "truncated": false,
     "reset_before_run": false,
@@ -179,14 +137,14 @@
   },
   "session_health_snapshot": {
     "history_path": "reports\\session_history.json",
-    "entries_seen": 5,
+    "entries_seen": 1,
     "recent_window": 20,
     "degraded_ok_after_retry_threshold": 3,
     "degraded_failed_threshold": 1,
-    "recent_ok": 4,
-    "recent_ok_after_retry": 1,
+    "recent_ok": 1,
+    "recent_ok_after_retry": 0,
     "recent_failed": 0,
-    "recent_injection_triggered": 1,
+    "recent_injection_triggered": 0,
     "health_status": "ok"
   }
 }

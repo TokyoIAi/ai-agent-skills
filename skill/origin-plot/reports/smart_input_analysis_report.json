@@ -1,0 +1,47 @@
+{
+  "timestamp_utc": "2026-05-22T09:24:16Z",
+  "status": "PASS",
+  "input_file": "data\\smart_inputs\\sample_markdown_table.md",
+  "detected_format": "md",
+  "sheet_name": null,
+  "header_row": 0,
+  "column_names": [
+    "距离(cm)",
+    "功率(W)"
+  ],
+  "units": {
+    "距离(cm)": "cm",
+    "功率(W)": "W"
+  },
+  "numeric_columns": [
+    "距离(cm)",
+    "功率(W)"
+  ],
+  "text_columns": [],
+  "role_candidates": {
+    "x": [
+      "距离(cm)"
+    ],
+    "y": [
+      "功率(W)"
+    ],
+    "y_error": [],
+    "group": []
+  },
+  "selected_roles": {
+    "x_column": "距离(cm)",
+    "y_columns": [
+      "功率(W)"
+    ],
+    "y_error_columns": {},
+    "group_column": null
+  },
+  "recommended_graph_type": "line",
+  "generated_plot_config": "configs\\generated\\smart_generated_plot_config.yaml",
+  "plot_input_path": "data\\smart_inputs\\_bridges\\smart_sample_markdown_table.csv",
+  "plot_input_format": "csv",
+  "warnings": [
+    "markdown converted to CSV bridge: data\\smart_inputs\\_bridges\\smart_sample_markdown_table.csv"
+  ],
+  "errors": []
+}

@@ -2,7 +2,7 @@
 
 `origin-plot` is a Codex Agent Skill for reproducible scientific plotting with Windows Python, `originpro`, and local Origin / OriginPro. It uses API automation, not GUI clicking, screenshot recognition, or mouse-coordinate automation.
 
-Current version: v0.8.7.
+Current version: v0.9.
 
 ## Supported formats
 
@@ -874,6 +874,115 @@ Shell or CI consumers can extract the JSON and assert on `health_status` directl
 ### v0.8.x freeze policy
 
 After v0.8.7, the v0.8.x line is frozen pending real-usage observation. Bug fixes during the freeze land as `v0.8.7-hotfix-N` if absolutely necessary. New plotting features (multi-series fitting, color profiles, `.otpu` template reuse, multi-panel layouts) target v0.9 and require a clean stretch of `health_status="ok"` runs in production before development starts.
+
+## v0.9 Smart Data Understanding + Auto Plot
+
+v0.9 introduces a smart-input front end. Hand the Skill a CSV / XLSX / TSV / TXT / Markdown table; it analyzes structure, infers column roles, recommends a graph type, generates a v0.2-compatible plot config, and reuses the existing Origin pipeline to render PNG / PDF / OPJU.
+
+### Supported smart inputs
+
+- CSV (`*.csv`)
+- TSV (`*.tsv`)
+- TXT delimited text (`*.txt`)
+- Excel (`*.xlsx`) with auto-sheet selection
+- Markdown table (`*.md`, first standard `| ... |` table extracted)
+
+Markdown inputs are converted to a CSV bridge under `data/smart_inputs/_bridges/<basename>.csv` so the existing Origin pipeline can consume them as plain CSV. The bridge file is reported back via `plot_input_path` in the analysis report.
+
+### Smart input config
+
+```yaml
+input_file: "data/smart_inputs/sample_markdown_table.md"
+input_format: "auto"
+
+smart_analysis:
+  enabled: true
+  detect_header_row: true
+  detect_units: true
+  detect_column_roles: true
+  detect_plot_type: true
+
+role_inference_rules:
+  prefer_first_numeric_as_x: true
+  prefer_remaining_numeric_as_y: true
+  infer_error_columns_by_suffix: true
+  infer_group_columns_by_text: true
+  error_column_suffixes: ["_err", "_error", "_uncertainty", "误差", "标准差"]
+  x_column_candidates: ["x", "time", "时间", "distance", "距离"]
+  group_column_candidates: ["group", "类别", "组别", "type"]
+
+markdown:
+  extract_first_table: true
+
+excel:
+  auto_detect_sheet: true
+  auto_detect_header_row: true
+
+output:
+  generated_config_path: "configs/generated/smart_generated_plot_config.yaml"
+  smart_report_path: "reports/smart_input_analysis_report.json"
+  output_dir: "output/origin_plot_smart"
+  output_basename: null   # auto-derived from input filename when null
+  style_profile: "configs/styles/lab_report_style.yaml"
+  export_profile: "configs/exports/default_export.yaml"
+  show_origin: true
+  report_package_dir: "reports/report_package"
+```
+
+### Role inference rules
+
+- **x**: explicit candidate match (case-insensitive name without unit suffix) wins; otherwise the first numeric column.
+- **y**: every remaining numeric column that is not an `x` and not an inferred error column.
+- **y_error**: any numeric column whose name ends in one of `error_column_suffixes` and whose base name matches a y candidate.
+- **group**: any text column whose name appears in `group_column_candidates`; falls back to the first text column when none match.
+
+### Recommended graph type
+
+- `x` + single y → `line`
+- `x` + y + y_error → `errorbar`
+- `x` + group + value → `grouped_line` (pivoted to wide form before plotting)
+- Anything else → falls back to `scatter` with a warning.
+
+### Workflow
+
+```powershell
+py scripts\analyze_data_source.py --config configs\smart\smart_input_config.yaml
+py scripts\run_smart_plot.py --config configs\smart\smart_input_config.yaml
+```
+
+`analyze_data_source.py` only inspects the data; it never calls Origin. `run_smart_plot.py` runs the analyzer and then invokes `origin_plot_from_config.py` against the generated config to produce PNG/PDF/OPJU.
+
+Override the input without editing the config:
+
+```powershell
+py scripts\run_smart_plot.py --config configs\smart\smart_input_config.yaml --input-file data/smart_inputs/sample_grouped.csv
+```
+
+### Grouped plot MVP
+
+`graph_type: grouped_line` and `graph_type: grouped_scatter` accept `group_column` plus a single value column. Both validator and plotting script pivot to wide form (one column per group level) before sending to Origin, then render as multiple line or scatter series. Errorbars and fitting are not paired with grouped data in v0.9; the existing line/scatter/errorbar/fitting paths remain untouched.
+
+### Report package output
+
+After a successful smart run, `reports/report_package/` collects portable artifacts:
+
+```
+reports/report_package/
+  figures/<basename>.png, .pdf
+  origin_projects/<basename>.opju
+  configs/smart_generated_plot_config.yaml
+  figure_index.md
+  run_report.json
+```
+
+`figure_index.md` lists `input_file`, detected roles, recommended graph type, and the relative paths to the produced files. `run_report.json` mirrors the smart-run report with relative paths only. The package never copies anything from `output/` other than the latest run's outputs.
+
+### What v0.9 does not do
+
+- No image / OCR pipeline. Image-based input recognition is reserved for a future `v0.9.x experimental` slot. Stub fields may exist in reports, but image-driven runs are not part of v0.9 acceptance.
+- No multi-panel layouts.
+- No additional fit models or color profiles.
+- No `.otpu` template reuse.
 
 ## YAML fields
 
